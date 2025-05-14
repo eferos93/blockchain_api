@@ -10,17 +10,15 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// In-memory map to track initialized clients
-var initializedClients = make(map[string]bool)
-var mu sync.Mutex
+// In-memory map to track initialized clients (concurrent safe)
+var initializedClients sync.Map
 
 // Middleware to check if client has accessed /client/ first
 func requireInitialization(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		clientIP := r.RemoteAddr
-		mu.Lock()
-		initialized := initializedClients[clientIP]
-		mu.Unlock()
+		val, ok := initializedClients.Load(clientIP)
+		initialized := ok && val.(bool)
 		if !initialized {
 			http.Error(w, "You must POST to /client/ first", http.StatusForbidden)
 			return
@@ -38,9 +36,7 @@ func main() {
 	// Wrap the original handler to mark client as initialized
 	clientRouter.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		clientIP := r.RemoteAddr
-		mu.Lock()
-		initializedClients[clientIP] = true
-		mu.Unlock()
+		initializedClients.Store(clientIP, true)
 		clientapi.ClientHandler(w, r)
 	}).Methods("POST")
 
@@ -49,11 +45,8 @@ func main() {
 
 	clientRouter.HandleFunc("/close", func(w http.ResponseWriter, r *http.Request) {
 		clientIP := r.RemoteAddr
-		mu.Lock()
-		initializedClients[clientIP] = false
-		mu.Unlock()
-		clientapi.CloseHandler(r, w)
-
+		initializedClients.Store(clientIP, false)
+		clientapi.CloseHandler(w, r)
 	}).Methods("POST")
 
 	fmt.Println("Listening (http://localhost:3000/)...")
