@@ -4,27 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/hyperledger/fabric-gateway/pkg/client"
 	// "rest-api-go/client"
 )
-
-type OrgSetup struct {
-	OrgName      string
-	MSPID        string
-	CryptoPath   string
-	CertPath     string
-	KeyPath      string
-	TLSCertPath  string
-	PeerEndpoint string
-	GatewayPeer  string
-	Gateway      client.Gateway
-}
-
-type RequestBody struct {
-	ChaincodeId string   `json:"chaincodeid"`
-	ChannelId   string   `json:"channelid"`
-	Function    string   `json:"function"`
-	Args        []string `json:"args"`
-}
 
 // Invoke handles chaincode invoke requests.
 func (setup *OrgSetup) Invoke(w http.ResponseWriter, r *http.Request) {

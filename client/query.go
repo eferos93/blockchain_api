@@ -1,24 +1,11 @@
 package client
 
 import (
-	"encoding/json"
 	"fmt"
 
 	// "invoke" // Assuming invoke.go is in the same package
 	"net/http"
 )
-
-type OrgSetup struct {
-	OrgName      string
-	MSPID        string
-	CryptoPath   string
-	CertPath     string
-	KeyPath      string
-	TLSCertPath  string
-	PeerEndpoint string
-	GatewayPeer  string
-	Gateway      client.Gateway
-}
 
 // Query handles chaincode query requests.
 // func (setup *OrgSetup) Query(w http.ResponseWriter, r *http.Request) {
