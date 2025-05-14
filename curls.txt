@@ -1,0 +1,3 @@
+curl  http://localhost:3000/invoke -H "Content-Type: application/json" -d '{"channelid": "dt4h", "chaincodeid": "dt4hCC", "function": "LogQuery", "args": ["select metadata from test-dataset"]}'
+
+curl "http://localhost:3000/query?channelid=dt4h&chaincodeid=dt4hCC&function=GetUserHistory&args=blockclient" -H "Accept: application/json"
