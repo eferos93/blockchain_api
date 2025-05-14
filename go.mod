@@ -4,11 +4,13 @@ go 1.24.1
 
 require (
 	github.com/gorilla/mux v1.8.1
+	github.com/gorilla/sessions v1.4.0
 	github.com/hyperledger/fabric-gateway v1.7.1
-	google.golang.org/grpc v1.72.0
+	google.golang.org/grpc v1.72.1
 )
 
 require (
+	github.com/gorilla/securecookie v1.1.2 // indirect
 	github.com/hyperledger/fabric-protos-go-apiv2 v0.3.7 // indirect
 	github.com/miekg/pkcs11 v1.1.1 // indirect
 	golang.org/x/crypto v0.38.0 // indirect
