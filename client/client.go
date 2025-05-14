@@ -1,17 +1,19 @@
 package client
 
 import (
+	"crypto/sha256"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path"
+	"sync"
 	"time"
 
-	// "rest-api-go/client/invoke.go"
-
+	"github.com/gorilla/sessions"
 	"github.com/hyperledger/fabric-gateway/pkg/client"
 	"github.com/hyperledger/fabric-gateway/pkg/identity"
 	"google.golang.org/grpc"
@@ -46,8 +48,16 @@ type RequestBody struct {
 	Args        []string `json:"args"`
 }
 
-// Store the initialized OrgSetup in memory (for demo purposes, not production safe)
-var globalOrgSetup *OrgSetup
+// Store the initialized OrgSetups per session token (thread-safe)
+var orgSetupSessions sync.Map // map[string]*OrgSetup
+
+var store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_KEY")))
+
+// Helper to compute SHA256 hash of PEM-encoded identity
+func IdentityHashFromPEM(pem string) string {
+	hash := sha256.Sum256([]byte(pem))
+	return hex.EncodeToString(hash[:])
+}
 
 // Initialize the setup for the organization.
 func Initialize(setup OrgSetup) (*OrgSetup, error) {
@@ -73,6 +83,36 @@ func Initialize(setup OrgSetup) (*OrgSetup, error) {
 	return &setup, nil
 }
 
+// Initialize the setup for the organization and store in session map.
+func InitializeWithSession(setup OrgSetup, session *sessions.Session, w http.ResponseWriter, r *http.Request) error {
+	orgSetup, err := Initialize(setup)
+	if err != nil {
+		return err
+	}
+	// Use the gorilla session ID as the key
+	orgSetupSessions.Store(session.ID, orgSetup)
+	session.Options = &sessions.Options{
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   false, // Set to true if using HTTPS
+	}
+	return session.Save(r, w)
+}
+
+// Get OrgSetup from session map
+func GetOrgSetup(sessionID string) (*OrgSetup, bool) {
+	val, ok := orgSetupSessions.Load(sessionID)
+	if !ok {
+		return nil, false
+	}
+	return val.(*OrgSetup), true
+}
+
+// Remove OrgSetup from session map
+func RemoveOrgSetup(sessionID string) {
+	orgSetupSessions.Delete(sessionID)
+}
+
 // newGrpcConnection creates a gRPC connection to the Gateway server.
 func (setup OrgSetup) newGrpcConnection() *grpc.ClientConn {
 	certificate, err := loadCertificate(setup.TLSCertPath)
@@ -84,7 +124,7 @@ func (setup OrgSetup) newGrpcConnection() *grpc.ClientConn {
 	certPool.AddCert(certificate)
 	transportCredentials := credentials.NewClientTLSFromCert(certPool, setup.GatewayPeer)
 
-	connection, err := grpc.NewClient(setup.PeerEndpoint, grpc.WithTransportCredentials(transportCredentials))
+	connection, err := grpc.Dial(setup.PeerEndpoint, grpc.WithTransportCredentials(transportCredentials))
 	if err != nil {
 		panic(fmt.Errorf("failed to create gRPC connection: %w", err))
 	}
@@ -140,53 +180,12 @@ func loadCertificate(filename string) (*x509.Certificate, error) {
 	return identity.CertificateFromPEM(certificatePEM)
 }
 
-// InvokeWithBody executes a chaincode invoke using the already-initialized OrgSetup
-func (setup *OrgSetup) InvokeWithBody(w http.ResponseWriter, reqBody RequestBody) {
-	w.Header().Set("Content-Type", "application/json")
-	fmt.Println("Received Invoke request")
-	network := setup.Gateway.GetNetwork(reqBody.ChannelId)
-	contract := network.GetContract(reqBody.ChaincodeId)
-	txn_proposal, err := contract.NewProposal(reqBody.Function, client.WithArguments(reqBody.Args...))
-	if err != nil {
-		fmt.Fprintf(w, "Error creating txn proposal: %s", err)
-		return
-	}
-	txn_endorsed, err := txn_proposal.Endorse()
-	if err != nil {
-		fmt.Fprintf(w, "Error endorsing txn: %s", err)
-		return
-	}
-	txn_committed, err := txn_endorsed.Submit()
-	if err != nil {
-		fmt.Fprintf(w, "Error submitting transaction: %s", err)
-		return
-	}
-	fmt.Fprintf(w, "Transaction ID : %s Response: %s", txn_committed.TransactionID(), txn_endorsed.Result())
-}
-
-// QueryWithBody executes a chaincode query using the already-initialized OrgSetup
-func (setup *OrgSetup) QueryWithBody(w http.ResponseWriter, reqBody RequestBody) {
-	w.Header().Set("Content-type", "application/json")
-	fmt.Println("Received Query request")
-	chainCodeName := reqBody.ChaincodeId
-	channelID := reqBody.ChannelId
-	function := reqBody.Function
-	args := reqBody.Args
-	fmt.Printf("channel: %s, chaincode: %s, function: %s, args: %s\n", channelID, chainCodeName, function, args)
-	network := setup.Gateway.GetNetwork(channelID)
-	contract := network.GetContract(chainCodeName)
-	evaluateResponse, err := contract.EvaluateTransaction(function, args...)
-	if err != nil {
-		fmt.Fprintf(w, "Error: %s", err)
-		return
-	}
-	w.Write(evaluateResponse)
-}
-
 // Handler for /client/invoke
 func InvokeHandler(w http.ResponseWriter, r *http.Request) {
-	if globalOrgSetup == nil {
-		http.Error(w, "Fabric client not initialized. Call /client/ first.", http.StatusBadRequest)
+	session, _ := store.Get(r, "fabric-session")
+	orgSetup, ok := GetOrgSetup(session.ID)
+	if !ok {
+		http.Error(w, "Fabric client not initialized for this session. Call /client/ first.", http.StatusBadRequest)
 		return
 	}
 	var reqBody RequestBody
@@ -194,13 +193,15 @@ func InvokeHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	globalOrgSetup.InvokeWithBody(w, reqBody)
+	orgSetup.InvokeWithBody(w, reqBody)
 }
 
 // Handler for /client/query
 func QueryHandler(w http.ResponseWriter, r *http.Request) {
-	if globalOrgSetup == nil {
-		http.Error(w, "Fabric client not initialized. Call /client/ first.", http.StatusBadRequest)
+	session, _ := store.Get(r, "fabric-session")
+	orgSetup, ok := GetOrgSetup(session.ID)
+	if !ok {
+		http.Error(w, "Fabric client not initialized for this session. Call /client/ first.", http.StatusBadRequest)
 		return
 	}
 	var reqBody RequestBody
@@ -208,7 +209,7 @@ func QueryHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	globalOrgSetup.QueryWithBody(w, reqBody)
+	orgSetup.QueryWithBody(w, reqBody)
 }
 
 // Handler for /client/ (initializes connection to Fabric blockchain)
@@ -218,27 +219,31 @@ func ClientHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid OrgSetup: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	orgSetup, err := Initialize(orgConfig)
-	if err != nil {
+	session, _ := store.Get(r, "fabric-session")
+	if err := InitializeWithSession(orgConfig, session, w, r); err != nil {
 		http.Error(w, "Error initializing org: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	globalOrgSetup = orgSetup
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Fabric client connection initialized successfully."))
 }
 
+// Handler for /client/close
 func CloseHandler(w http.ResponseWriter, r *http.Request) {
-	if globalOrgSetup == nil {
-		http.Error(w, "No active Fabric client connection.", http.StatusBadRequest)
+	session, _ := store.Get(r, "fabric-session")
+	orgSetup, ok := GetOrgSetup(session.ID)
+	if !ok {
+		http.Error(w, "No active Fabric client connection for this session.", http.StatusBadRequest)
 		return
 	}
-	err := globalOrgSetup.Gateway.Close()
+	err := orgSetup.Gateway.Close()
 	if err != nil {
 		http.Error(w, "Error closing Fabric client connection: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	globalOrgSetup = nil
+	RemoveOrgSetup(session.ID)
+	session.Options.MaxAge = -1 // Invalidate session cookie
+	session.Save(r, w)
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Fabric client connection closed successfully."))
 }
