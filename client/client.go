@@ -227,3 +227,18 @@ func ClientHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Fabric client connection initialized successfully."))
 }
+
+func CloseHandler(w http.ResponseWriter, r *http.Request) {
+	if globalOrgSetup == nil {
+		http.Error(w, "No active Fabric client connection.", http.StatusBadRequest)
+		return
+	}
+	err := globalOrgSetup.Gateway.Close()
+	if err != nil {
+		http.Error(w, "Error closing Fabric client connection: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	globalOrgSetup = nil
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Fabric client connection closed successfully."))
+}
