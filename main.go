@@ -47,6 +47,15 @@ func main() {
 	clientRouter.Handle("/invoke", requireInitialization(http.HandlerFunc(clientapi.InvokeHandler))).Methods("POST")
 	clientRouter.Handle("/query", requireInitialization(http.HandlerFunc(clientapi.QueryHandler))).Methods("POST")
 
+	clientRouter.HandleFunc("/close", func(w http.ResponseWriter, r *http.Request) {
+		clientIP := r.RemoteAddr
+		mu.Lock()
+		initializedClients[clientIP] = false
+		mu.Unlock()
+		clientapi.CloseHandler(r, w)
+
+	}).Methods("POST")
+
 	fmt.Println("Listening (http://localhost:3000/)...")
 	http.ListenAndServe(":3000", r)
 }
