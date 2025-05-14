@@ -45,9 +45,13 @@ func main() {
 
 	clientRouter.HandleFunc("/close", func(w http.ResponseWriter, r *http.Request) {
 		clientIP := r.RemoteAddr
-		initializedClients.Store(clientIP, false)
+		deleted := initializedClients.CompareAndDelete(clientIP, true)
+		if !deleted {
+			http.Error(w, "There is no connection open for this client on the blockchain", http.StatusForbidden)
+			return
+		}
 		clientapi.CloseHandler(w, r)
-	}).Methods("POST")
+	}).Methods("GET")
 
 	fmt.Println("Listening (http://localhost:3000/)...")
 	http.ListenAndServe(":3000", r)
