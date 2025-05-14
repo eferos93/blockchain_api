@@ -3,20 +3,49 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"sync"
 
 	clientapi "rest-api-go/client"
 
 	"github.com/gorilla/mux"
 )
 
+// In-memory map to track initialized clients
+var initializedClients = make(map[string]bool)
+var mu sync.Mutex
+
+// Middleware to check if client has accessed /client/ first
+func requireInitialization(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		clientIP := r.RemoteAddr
+		mu.Lock()
+		initialized := initializedClients[clientIP]
+		mu.Unlock()
+		if !initialized {
+			http.Error(w, "You must POST to /client/ first", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	r := mux.NewRouter()
 
 	// Group under /client
 	clientRouter := r.PathPrefix("/client").Subrouter()
-	clientRouter.HandleFunc("/", clientapi.ClientHandler).Methods("POST")
-	clientRouter.HandleFunc("/invoke", clientapi.InvokeHandler).Methods("POST")
-	clientRouter.HandleFunc("/query", clientapi.QueryHandler).Methods("POST")
+
+	// Wrap the original handler to mark client as initialized
+	clientRouter.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		clientIP := r.RemoteAddr
+		mu.Lock()
+		initializedClients[clientIP] = true
+		mu.Unlock()
+		clientapi.ClientHandler(w, r)
+	}).Methods("POST")
+
+	clientRouter.Handle("/invoke", requireInitialization(http.HandlerFunc(clientapi.InvokeHandler))).Methods("POST")
+	clientRouter.Handle("/query", requireInitialization(http.HandlerFunc(clientapi.QueryHandler))).Methods("POST")
 
 	fmt.Println("Listening (http://localhost:3000/)...")
 	http.ListenAndServe(":3000", r)
