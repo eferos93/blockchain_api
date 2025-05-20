@@ -199,18 +199,32 @@ func InvokeHandler(w http.ResponseWriter, r *http.Request) {
 
 // Handler for /client/query
 func QueryHandler(w http.ResponseWriter, r *http.Request) {
-	session, _ := store.Get(r, "fabric-session")
-	orgSetup, ok := GetOrgSetup(session.ID)
-	if !ok {
-		http.Error(w, "Fabric client not initialized for this session. Call /client/ first.", http.StatusBadRequest)
+	if r.Method == http.MethodGet {
+		// Parse query parameters
+		chaincodeId := r.URL.Query().Get("chaincodeid")
+		channelId := r.URL.Query().Get("channelid")
+		function := r.URL.Query().Get("function")
+		args := r.URL.Query()["args"]
+		if chaincodeId == "" || channelId == "" || function == "" {
+			http.Error(w, "Missing required query parameters", http.StatusBadRequest)
+			return
+		}
+		session, _ := store.Get(r, "fabric-session")
+		orgSetup, ok := GetOrgSetup(session.ID)
+		if !ok {
+			http.Error(w, "Fabric client not initialized for this session. Call /client/ first.", http.StatusBadRequest)
+			return
+		}
+		reqBody := RequestBody{
+			ChaincodeId: chaincodeId,
+			ChannelId:   channelId,
+			Function:    function,
+			Args:        args,
+		}
+		orgSetup.QueryWithBody(w, reqBody)
 		return
 	}
-	var reqBody RequestBody
-	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
-		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-	orgSetup.QueryWithBody(w, reqBody)
+	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
 
 // Handler for /client/ (initializes connection to Fabric blockchain)

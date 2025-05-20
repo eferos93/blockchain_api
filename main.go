@@ -17,7 +17,7 @@ func main() {
 
 	clientRouter.HandleFunc("/", clientapi.ClientHandler).Methods("POST")
 	clientRouter.HandleFunc("/invoke", clientapi.InvokeHandler).Methods("POST")
-	clientRouter.HandleFunc("/query", clientapi.QueryHandler).Methods("POST")
+	clientRouter.HandleFunc("/query", clientapi.QueryHandler).Methods("GET")
 	clientRouter.HandleFunc("/close", clientapi.CloseHandler).Methods("GET")
 
 	fmt.Println("Listening (http://localhost:3000/)...")
