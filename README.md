@@ -31,3 +31,23 @@ docker run --env-file .env -p 3000:3000 your-api-image
 ```
 
 > **Note:** For production, generate these keys once and keep them secret and persistent. If you generate new keys, all previous sessions will become invalid.
+
+## Running with Docker Compose
+
+To build and run the application using Docker Compose:
+
+1. Make sure you have generated the `.env` file with session keys (see the Session Keys section).
+2. Run the following command:
+
+```bash
+docker-compose up --build
+```
+
+This will build the Docker image and start the API service, exposing it on port 3000.
+
+- The application will automatically use the environment variables from your `.env` file.
+- To stop the service, use:
+
+```bash
+docker-compose down
+```
