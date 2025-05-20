@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM golang:1.24.3-alpine3.19 AS build
+FROM golang:1.24.3-alpine AS build
 WORKDIR /app
 RUN apk update && apk upgrade --no-cache
 COPY go.mod go.sum ./
