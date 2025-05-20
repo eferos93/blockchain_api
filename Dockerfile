@@ -5,6 +5,8 @@ RUN apk update && apk upgrade --no-cache
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
+# Run tests before building the binary
+RUN go test ./...
 RUN go build -o blockchain_api
 
 FROM alpine:3.21
