@@ -21,8 +21,8 @@ func getTestOrgSetup() client.OrgSetup {
 		CertPath:     filepath.Join(base, "signcerts/cert.pem"),
 		KeyPath:      filepath.Join(base, "keystore"),
 		TLSCertPath:  filepath.Join(base, "tlscacerts/ca.crt"),
-		PeerEndpoint: "localhost:7051",
-		GatewayPeer:  "peer0.blockClient.example.com",
+		PeerEndpoint: "dns:///localhost:9051",
+		GatewayPeer:  "peer0.bsc.domain.com",
 	}
 }
 
