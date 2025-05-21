@@ -13,7 +13,7 @@ import (
 
 func getTestOrgSetup() client.OrgSetup {
 	// Use test keys and certs from the identities folder
-	base := "./identities/blockClient/msp"
+	base := "../identities/blockClient/msp"
 	return client.OrgSetup{
 		OrgName:      "blockClient",
 		MSPID:        "blockClientMSP",
