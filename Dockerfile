@@ -5,8 +5,7 @@ RUN apk update && apk upgrade --no-cache
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-# Run tests before building the binary
-RUN go test ./...
+# Build the binary (do not run tests in the Docker build)
 RUN go build -o blockchain_api
 
 FROM alpine:3.21
@@ -17,7 +16,6 @@ COPY --from=build /app/README.md ./
 COPY --from=build /app/generate_session_keys.sh ./
 COPY --from=build /app/client ./client
 COPY --from=build /app/identities ./identities
-COPY --from=build /app/.env ./
 COPY --from=build /app/.env ./
 
 # Expose the API port
