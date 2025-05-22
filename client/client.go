@@ -54,12 +54,19 @@ var orgSetupSessions sync.Map // map[string]*OrgSetup
 var store *sessions.CookieStore
 
 func init() {
-	authKey := os.Getenv("SESSION_AUTH_KEY")
-	encKey := os.Getenv("SESSION_ENC_KEY")
-	if authKey == "" || encKey == "" {
+	authKey, err := hex.DecodeString(os.Getenv("SESSION_AUTH_KEY"))
+	if err != nil {
+		log.Fatalf("Error decoding the authKey: %v", err)
+	}
+	encKey, err := hex.DecodeString(os.Getenv("SESSION_ENC_KEY"))
+	if err != nil {
+		log.Fatalf("Error decoding the encKey: %v", err)
+	}
+
+	if len(authKey) == 0 || len(encKey) == 0 {
 		log.Fatal("SESSION_AUTH_KEY and SESSION_ENC_KEY environment variables must be set and non-empty.")
 	}
-	store = sessions.NewCookieStore([]byte(authKey), []byte(encKey))
+	store = sessions.NewCookieStore(authKey, encKey)
 }
 
 // Helper to compute SHA256 hash of PEM-encoded identity
