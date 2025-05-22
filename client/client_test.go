@@ -41,7 +41,7 @@ func TestClientHandler(t *testing.T) {
 	rec := httptest.NewRecorder()
 	client.ClientHandler(rec, req)
 	if rec.Code != http.StatusOK {
-		t.Errorf("Expected 200 OK, got %d", rec.Code)
+		t.Errorf("Expected 200 OK, got %d. Body: %s", rec.Code, rec.Body.String())
 	}
 }
 
@@ -50,7 +50,7 @@ func TestInvokeHandlerWithoutInit(t *testing.T) {
 	rec := httptest.NewRecorder()
 	client.InvokeHandler(rec, req)
 	if rec.Code == http.StatusOK {
-		t.Error("Expected error when invoking without initialization")
+		t.Errorf("Expected error when invoking without initialization. Body: %s", rec.Body.String())
 	}
 }
 
@@ -59,7 +59,7 @@ func TestQueryHandlerWithoutInit(t *testing.T) {
 	rec := httptest.NewRecorder()
 	client.QueryHandler(rec, req)
 	if rec.Code == http.StatusOK {
-		t.Error("Expected error when querying without initialization")
+		t.Errorf("Expected error when querying without initialization. Body: %s", rec.Body.String())
 	}
 }
 

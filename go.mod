@@ -7,6 +7,7 @@ require (
 	github.com/gorilla/sessions v1.4.0
 	github.com/hyperledger/fabric-gateway v1.7.1
 	google.golang.org/grpc v1.72.1
+	gituhub.com/joho/godotenv v1.6.0-pre.2
 )
 
 require (

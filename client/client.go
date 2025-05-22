@@ -51,8 +51,16 @@ type RequestBody struct {
 // Store the initialized OrgSetups per session token (thread-safe)
 var orgSetupSessions sync.Map // map[string]*OrgSetup
 
-var store = sessions.NewCookieStore([]byte(os.Getenv("SESSION_AUTH_KEY")),
-	[]byte(os.Getenv("SESSION_ENC_KEY")))
+var store *sessions.CookieStore
+
+func init() {
+	authKey := os.Getenv("SESSION_AUTH_KEY")
+	encKey := os.Getenv("SESSION_ENC_KEY")
+	if authKey == "" || encKey == "" {
+		log.Fatal("SESSION_AUTH_KEY and SESSION_ENC_KEY environment variables must be set and non-empty.")
+	}
+	store = sessions.NewCookieStore([]byte(authKey), []byte(encKey))
+}
 
 // Helper to compute SHA256 hash of PEM-encoded identity
 func IdentityHashFromPEM(pem string) string {
