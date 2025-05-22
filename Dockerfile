@@ -23,8 +23,5 @@ COPY --from=build /app/.env ./
 # Expose the API port
 EXPOSE 3000
 
-# Load environment variables from .env if present
-ENV $(cat .env 2>/dev/null | xargs)
-
 # Run the application
 CMD ["./blockchain_api"]
