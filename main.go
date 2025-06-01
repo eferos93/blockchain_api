@@ -2,15 +2,40 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
+	"os"
 
 	caapi "rest-api-go/ca"
 	clientapi "rest-api-go/client"
+	"rest-api-go/keystore"
 
 	"github.com/gorilla/mux"
 )
 
 func main() {
+	// Initialize keystore
+	keystoreType := os.Getenv("KEYSTORE_TYPE")
+	if keystoreType == "" {
+		keystoreType = "file" // Default to file-based keystore
+	}
+
+	keystoreConfig := os.Getenv("KEYSTORE_CONFIG")
+	if keystoreConfig == "" {
+		keystoreConfig = "./secure-keystore" // Default path
+	}
+
+	keystorePassword := os.Getenv("KEYSTORE_PASSWORD")
+	if keystorePassword == "" {
+		log.Fatal("KEYSTORE_PASSWORD environment variable must be set")
+	}
+
+	if err := keystore.InitializeKeystore(keystoreType, keystoreConfig, keystorePassword); err != nil {
+		log.Fatalf("Failed to initialize keystore: %v", err)
+	}
+
+	log.Printf("Keystore initialized: type=%s, config=%s", keystoreType, keystoreConfig)
+
 	r := mux.NewRouter()
 
 	// Group under /client

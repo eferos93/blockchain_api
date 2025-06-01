@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"rest-api-go/keystore"
 	"time"
 )
 
@@ -233,6 +234,16 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 	if err := json.Unmarshal(body, &enrollResp); err != nil {
 		http.Error(w, "Failed to parse enrollment response", http.StatusInternalServerError)
 		return
+	}
+
+	// Store the enrolled identity in keystore if enrollment was successful
+	if result, ok := enrollResp["result"].(map[string]interface{}); ok {
+		if err := keystore.StoreEnrollmentResult(req.EnrollmentID, req.CAConfig.MSPID, result); err != nil {
+			log.Printf("Warning: Failed to store enrollment result in keystore: %v", err)
+			// Don't fail the request, just log the warning
+		} else {
+			log.Printf("Successfully stored enrollment result for %s in keystore", req.EnrollmentID)
+		}
 	}
 
 	// Return success response

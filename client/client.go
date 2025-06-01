@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"rest-api-go/keystore"
 	"sync"
 	"time"
 
@@ -30,7 +31,10 @@ type OrgSetup struct {
 	TLSCertPath  string `json:"tlsCertPath"`
 	PeerEndpoint string `json:"peerEndpoint"`
 	GatewayPeer  string `json:"gatewayPeer"`
-	Gateway      client.Gateway
+	// New fields for keystore-based loading
+	UseKeystore    bool   `json:"useKeystore"`    // If true, load from keystore instead of files
+	EnrollmentID   string `json:"enrollmentId"`   // Required if UseKeystore is true
+	Gateway        client.Gateway
 }
 
 // Combined request for OrgSetup and transaction
@@ -150,7 +154,23 @@ func (setup OrgSetup) newGrpcConnection() *grpc.ClientConn {
 
 // newIdentity creates a client identity for this Gateway connection using an X.509 certificate.
 func (setup OrgSetup) newIdentity() *identity.X509Identity {
-	certificate, err := loadCertificate(setup.CertPath)
+	var certificate *x509.Certificate
+	var err error
+
+	if setup.UseKeystore && setup.EnrollmentID != "" {
+		// Load from keystore
+		certPath, _, err := keystore.GetKeyForFabricClient(setup.EnrollmentID, setup.MSPID)
+		if err != nil {
+			log.Printf("Failed to get key from keystore, falling back to file: %v", err)
+			certificate, err = loadCertificate(setup.CertPath)
+		} else {
+			certificate, err = loadCertificate(certPath)
+		}
+	} else {
+		// Load from file system
+		certificate, err = loadCertificate(setup.CertPath)
+	}
+
 	if err != nil {
 		panic(err)
 	}
@@ -165,11 +185,36 @@ func (setup OrgSetup) newIdentity() *identity.X509Identity {
 
 // newSign creates a function that generates a digital signature from a message digest using a private key.
 func (setup OrgSetup) newSign() identity.Sign {
-	files, err := os.ReadDir(setup.KeyPath)
-	if err != nil {
-		panic(fmt.Errorf("failed to read private key directory: %w", err))
+	var privateKeyPEM []byte
+	var err error
+
+	if setup.UseKeystore && setup.EnrollmentID != "" {
+		// Load from keystore
+		_, keyDir, err := keystore.GetKeyForFabricClient(setup.EnrollmentID, setup.MSPID)
+		if err != nil {
+			log.Printf("Failed to get key from keystore, falling back to file: %v", err)
+			// Fall back to file system
+			files, err := os.ReadDir(setup.KeyPath)
+			if err != nil {
+				panic(fmt.Errorf("failed to read private key directory: %w", err))
+			}
+			privateKeyPEM, err = os.ReadFile(path.Join(setup.KeyPath, files[0].Name()))
+		} else {
+			// Load from keystore directory
+			files, err := os.ReadDir(keyDir)
+			if err != nil {
+				panic(fmt.Errorf("failed to read keystore private key directory: %w", err))
+			}
+			privateKeyPEM, err = os.ReadFile(path.Join(keyDir, files[0].Name()))
+		}
+	} else {
+		// Load from file system
+		files, err := os.ReadDir(setup.KeyPath)
+		if err != nil {
+			panic(fmt.Errorf("failed to read private key directory: %w", err))
+		}
+		privateKeyPEM, err = os.ReadFile(path.Join(setup.KeyPath, files[0].Name()))
 	}
-	privateKeyPEM, err := os.ReadFile(path.Join(setup.KeyPath, files[0].Name()))
 
 	if err != nil {
 		panic(fmt.Errorf("failed to read private key file: %w", err))
