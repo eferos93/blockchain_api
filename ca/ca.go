@@ -76,21 +76,21 @@ type CAInfoResponse struct {
 
 // CAInfo contains CA server information
 type CAInfo struct {
-	CAName    string `json:"CAName"`
-	CAChain   string `json:"CAChain"`
-	IssuerPublicKey string `json:"IssuerPublicKey"`
+	CAName                    string `json:"CAName"`
+	CAChain                   string `json:"CAChain"`
+	IssuerPublicKey           string `json:"IssuerPublicKey"`
 	IssuerRevocationPublicKey string `json:"IssuerRevocationPublicKey"`
-	Version string `json:"Version"`
+	Version                   string `json:"Version"`
 }
 
 // Create HTTP client with optional TLS configuration
 func createHTTPClient(config CAConfig) *http.Client {
 	transport := &http.Transport{}
-	
+
 	if config.SkipTLS {
 		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
-	
+
 	return &http.Client{
 		Transport: transport,
 		Timeout:   30 * time.Second,
@@ -102,7 +102,7 @@ func InfoHandler(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		CAConfig CAConfig `json:"caConfig"`
 	}
-	
+
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request: "+err.Error(), http.StatusBadRequest)
 		return
@@ -110,13 +110,13 @@ func InfoHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Create HTTP client
 	client := createHTTPClient(req.CAConfig)
-	
+
 	// Make request to CA info endpoint
 	infoURL := fmt.Sprintf("%s/api/v1/cainfo", req.CAConfig.CAURL)
 	if req.CAConfig.CAName != "" {
 		infoURL += "?ca=" + req.CAConfig.CAName
 	}
-	
+
 	resp, err := client.Get(infoURL)
 	if err != nil {
 		log.Printf("Failed to get CA info: %v", err)
@@ -169,31 +169,31 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Create HTTP client
 	client := createHTTPClient(req.CAConfig)
-	
+
 	// Prepare enrollment request for CA
 	enrollReq := map[string]interface{}{
 		"id":     req.EnrollmentID,
 		"secret": req.Secret,
 	}
-	
+
 	if req.Profile != "" {
 		enrollReq["profile"] = req.Profile
 	}
-	
+
 	// Add CSR info if provided
 	if req.CSRInfo.CN != "" {
 		csr := map[string]interface{}{
 			"CN": req.CSRInfo.CN,
 		}
-		
+
 		if len(req.CSRInfo.Names) > 0 {
 			csr["names"] = req.CSRInfo.Names
 		}
-		
+
 		if len(req.CSRInfo.Hosts) > 0 {
 			csr["hosts"] = req.CSRInfo.Hosts
 		}
-		
+
 		enrollReq["csr"] = csr
 	}
 
@@ -208,7 +208,7 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 	if req.CAConfig.CAName != "" {
 		enrollURL += "?ca=" + req.CAConfig.CAName
 	}
-	
+
 	resp, err := client.Post(enrollURL, "application/json", bytes.NewBuffer(reqBody))
 	if err != nil {
 		log.Printf("Failed to enroll identity: %v", err)
@@ -267,19 +267,19 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	client := createHTTPClient(req.CAConfig)
-	
+
 	// Enroll admin
 	enrollURL := fmt.Sprintf("%s/api/v1/enroll", req.CAConfig.CAURL)
 	if req.CAConfig.CAName != "" {
 		enrollURL += "?ca=" + req.CAConfig.CAName
 	}
-	
+
 	adminReqBody, err := json.Marshal(adminEnrollReq)
 	if err != nil {
 		http.Error(w, "Failed to marshal admin enrollment request", http.StatusInternalServerError)
 		return
 	}
-	
+
 	adminResp, err := client.Post(enrollURL, "application/json", bytes.NewBuffer(adminReqBody))
 	if err != nil {
 		log.Printf("Failed to enroll admin: %v", err)
@@ -295,18 +295,18 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: Extract certificate and create authorization header
 	// For now, we'll return a simplified response
-	
+
 	// Prepare registration request
 	regReq := map[string]interface{}{
 		"id":          req.RegistrationID,
 		"type":        req.Type,
 		"affiliation": req.Affiliation,
 	}
-	
+
 	if req.Secret != "" {
 		regReq["secret"] = req.Secret
 	}
-	
+
 	if len(req.Attributes) > 0 {
 		regReq["attrs"] = req.Attributes
 	}
@@ -322,7 +322,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	if req.CAConfig.CAName != "" {
 		registerURL += "?ca=" + req.CAConfig.CAName
 	}
-	
+
 	regResp, err := client.Post(registerURL, "application/json", bytes.NewBuffer(regReqBody))
 	if err != nil {
 		log.Printf("Failed to register identity: %v", err)

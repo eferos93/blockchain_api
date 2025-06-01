@@ -1,10 +1,11 @@
-package ca
+package ca_test
 
 import (
 	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"rest-api-go/ca"
 	"testing"
 )
 
@@ -12,9 +13,9 @@ func TestInfoHandler(t *testing.T) {
 	// Create a mock CA server
 	mockCA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/cainfo" {
-			response := CAInfoResponse{
+			response := ca.CAInfoResponse{
 				Success: true,
-				Result: CAInfo{
+				Result: ca.CAInfo{
 					CAName:  "ca.example.com",
 					Version: "1.5.0",
 				},
@@ -42,7 +43,7 @@ func TestInfoHandler(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
-	InfoHandler(recorder, req)
+	ca.InfoHandler(recorder, req)
 
 	// Check response
 	if recorder.Code != http.StatusOK {
@@ -79,8 +80,8 @@ func TestEnrollHandler(t *testing.T) {
 	defer mockCA.Close()
 
 	// Test request
-	requestBody := EnrollmentRequest{
-		CAConfig: CAConfig{
+	requestBody := ca.EnrollmentRequest{
+		CAConfig: ca.CAConfig{
 			CAURL:   mockCA.URL,
 			CAName:  "ca.example.com",
 			MSPID:   "Org1MSP",
@@ -88,7 +89,7 @@ func TestEnrollHandler(t *testing.T) {
 		},
 		EnrollmentID: "testuser",
 		Secret:       "testpw",
-		CSRInfo: CSRInfo{
+		CSRInfo: ca.CSRInfo{
 			CN: "testuser",
 		},
 	}
@@ -98,7 +99,7 @@ func TestEnrollHandler(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
-	EnrollHandler(recorder, req)
+	ca.EnrollHandler(recorder, req)
 
 	// Check response
 	if recorder.Code != http.StatusOK {
@@ -119,7 +120,7 @@ func TestRegisterHandler(t *testing.T) {
 	// Create a mock CA server
 	enrollCalled := false
 	registerCalled := false
-	
+
 	mockCA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/enroll" && r.Method == "POST" {
 			enrollCalled = true
@@ -150,14 +151,14 @@ func TestRegisterHandler(t *testing.T) {
 	defer mockCA.Close()
 
 	// Test request
-	requestBody := RegistrationRequest{
-		CAConfig: CAConfig{
+	requestBody := ca.RegistrationRequest{
+		CAConfig: ca.CAConfig{
 			CAURL:   mockCA.URL,
 			CAName:  "ca.example.com",
 			MSPID:   "Org1MSP",
 			SkipTLS: true,
 		},
-		AdminIdentity: AdminIdentity{
+		AdminIdentity: ca.AdminIdentity{
 			EnrollmentID: "admin",
 			Secret:       "adminpw",
 		},
@@ -171,7 +172,7 @@ func TestRegisterHandler(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
-	RegisterHandler(recorder, req)
+	ca.RegisterHandler(recorder, req)
 
 	// Check response
 	if recorder.Code != http.StatusOK {
@@ -198,8 +199,8 @@ func TestRegisterHandler(t *testing.T) {
 
 func TestEnrollHandler_MissingFields(t *testing.T) {
 	// Test with missing enrollment ID
-	requestBody := EnrollmentRequest{
-		CAConfig: CAConfig{
+	requestBody := ca.EnrollmentRequest{
+		CAConfig: ca.CAConfig{
 			CAURL: "http://localhost:7054",
 		},
 		Secret: "testpw",
@@ -210,7 +211,7 @@ func TestEnrollHandler_MissingFields(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
-	EnrollHandler(recorder, req)
+	ca.EnrollHandler(recorder, req)
 
 	if recorder.Code != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, recorder.Code)
@@ -219,8 +220,8 @@ func TestEnrollHandler_MissingFields(t *testing.T) {
 
 func TestRegisterHandler_MissingFields(t *testing.T) {
 	// Test with missing admin credentials
-	requestBody := RegistrationRequest{
-		CAConfig: CAConfig{
+	requestBody := ca.RegistrationRequest{
+		CAConfig: ca.CAConfig{
 			CAURL: "http://localhost:7054",
 		},
 		RegistrationID: "newuser",
@@ -231,7 +232,7 @@ func TestRegisterHandler_MissingFields(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
-	RegisterHandler(recorder, req)
+	ca.RegisterHandler(recorder, req)
 
 	if recorder.Code != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, recorder.Code)
