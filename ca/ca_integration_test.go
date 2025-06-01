@@ -14,10 +14,10 @@ import (
 
 func TestRealCAInfoHandler(t *testing.T) {
 	// Test request with real CA configuration
-	requestBody := map[string]interface{}{
-		"caConfig": map[string]interface{}{
-			"caUrl":   "http://localhost:10055",
-			"caName":  "ca_bsc",
+	requestBody := map[string]any{
+		"caConfig": map[string]any{
+			"caUrl":   "https://localhost:10055",
+			"caName":  "ca-bsc",
 			"mspId":   "bscMSP",
 			"skipTls": true,
 		},
@@ -45,7 +45,7 @@ func TestRealCAInfoHandler(t *testing.T) {
 		return
 	}
 
-	var response map[string]interface{}
+	var response map[string]any
 	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestRealCAInfoHandler(t *testing.T) {
 	}
 
 	// Check if we got CA info
-	if caInfo, ok := response["caInfo"].(map[string]interface{}); ok {
+	if caInfo, ok := response["caInfo"].(map[string]any); ok {
 		t.Logf("CA Name: %v", caInfo["CAName"])
 		t.Logf("CA Version: %v", caInfo["Version"])
 	}
@@ -66,8 +66,8 @@ func TestRealCAEnrollHandler(t *testing.T) {
 	// Note: This test assumes admin/adminpw credentials exist
 	requestBody := ca.EnrollmentRequest{
 		CAConfig: ca.CAConfig{
-			CAURL:   "http://localhost:10055",
-			CAName:  "ca_bsc",
+			CAURL:   "https://localhost:10055",
+			CAName:  "ca-bsc",
 			MSPID:   "bscMSP",
 			SkipTLS: true,
 		},
@@ -110,7 +110,7 @@ func TestRealCAEnrollHandler(t *testing.T) {
 		return
 	}
 
-	var response map[string]interface{}
+	var response map[string]any
 	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -120,7 +120,7 @@ func TestRealCAEnrollHandler(t *testing.T) {
 	}
 
 	// Check if we got enrollment result
-	if result, ok := response["result"].(map[string]interface{}); ok {
+	if result, ok := response["result"].(map[string]any); ok {
 		t.Logf("Enrollment successful, got result with keys: %v", getKeys(result))
 	}
 }
@@ -129,8 +129,8 @@ func TestRealCARegisterHandler(t *testing.T) {
 	// Test registration of a new user
 	requestBody := ca.RegistrationRequest{
 		CAConfig: ca.CAConfig{
-			CAURL:   "http://localhost:10055",
-			CAName:  "ca_bsc",
+			CAURL:   "https://localhost:10055",
+			CAName:  "ca-bsc",
 			MSPID:   "bscMSP",
 			SkipTLS: true,
 		},
@@ -178,7 +178,7 @@ func TestRealCARegisterHandler(t *testing.T) {
 		return
 	}
 
-	var response map[string]interface{}
+	var response map[string]any
 	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -188,7 +188,7 @@ func TestRealCARegisterHandler(t *testing.T) {
 	}
 
 	// Check if we got registration result
-	if result, ok := response["result"].(map[string]interface{}); ok {
+	if result, ok := response["result"].(map[string]any); ok {
 		t.Logf("Registration successful, got result with keys: %v", getKeys(result))
 		if secret, ok := result["secret"].(string); ok {
 			t.Logf("Generated secret for testuser123: %s", secret)
@@ -197,7 +197,7 @@ func TestRealCARegisterHandler(t *testing.T) {
 }
 
 // Helper function to get keys from a map for logging
-func getKeys(m map[string]interface{}) []string {
+func getKeys(m map[string]any) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
