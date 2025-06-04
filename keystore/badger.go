@@ -1,18 +1,18 @@
 package keystore
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"io"
 	"time"
 
 	"github.com/dgraph-io/badger/v4"
+	"golang.org/x/crypto/pbkdf2"
 )
-
-// BadgerKeystore uses BadgerDB for fast, lightweight encrypted key-value storage
-type BadgerKeystore struct {
-	db        *badger.DB
-	encryptor *EncryptedKeystore // Reuse encryption logic
-}
 
 // NewBadgerKeystore creates a new BadgerDB-backed keystore
 func NewBadgerKeystore(dbPath string, masterPassword string) (*BadgerKeystore, error) {
@@ -26,12 +26,13 @@ func NewBadgerKeystore(dbPath string, masterPassword string) (*BadgerKeystore, e
 		return nil, fmt.Errorf("failed to open BadgerDB: %w", err)
 	}
 
-	// Initialize encryptor for key encryption
-	encryptor := NewEncryptedKeystore("/tmp", masterPassword)
+	// Derive a master key from password using PBKDF2
+	salt := []byte("fabric-api-keystore-salt") // In production, use random salt per keystore
+	masterKey := pbkdf2.Key([]byte(masterPassword), salt, 10000, 32, sha256.New)
 
 	return &BadgerKeystore{
 		db:        db,
-		encryptor: encryptor,
+		masterKey: masterKey,
 	}, nil
 }
 
@@ -52,7 +53,7 @@ func (b *BadgerKeystore) StoreKey(enrollmentID, mspID, privateKeyPEM, certificat
 	}
 
 	// Encrypt entry
-	encryptedData, err := b.encryptor.encrypt(entryData)
+	encryptedData, err := b.encrypt(entryData)
 	if err != nil {
 		return fmt.Errorf("failed to encrypt keystore entry: %w", err)
 	}
@@ -95,7 +96,7 @@ func (b *BadgerKeystore) RetrieveKey(enrollmentID, mspID string) (*KeystoreEntry
 	}
 
 	// Decrypt the data
-	entryData, err := b.encryptor.decrypt(encryptedData)
+	entryData, err := b.decrypt(encryptedData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decrypt keystore entry: %w", err)
 	}
@@ -147,4 +148,51 @@ func (b *BadgerKeystore) Close() error {
 // GarbageCollect runs BadgerDB garbage collection to reclaim space
 func (b *BadgerKeystore) GarbageCollect() error {
 	return b.db.RunValueLogGC(0.5)
+}
+
+// encrypt encrypts data using AES-GCM
+func (b *BadgerKeystore) encrypt(plaintext []byte) ([]byte, error) {
+	block, err := aes.NewCipher(b.masterKey)
+	if err != nil {
+		return nil, err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return nil, err
+	}
+
+	ciphertext := gcm.Seal(nonce, nonce, plaintext, nil)
+	return ciphertext, nil
+}
+
+// decrypt decrypts data using AES-GCM
+func (b *BadgerKeystore) decrypt(ciphertext []byte) ([]byte, error) {
+	block, err := aes.NewCipher(b.masterKey)
+	if err != nil {
+		return nil, err
+	}
+
+	gcm, err := cipher.NewGCM(block)
+	if err != nil {
+		return nil, err
+	}
+
+	nonceSize := gcm.NonceSize()
+	if len(ciphertext) < nonceSize {
+		return nil, fmt.Errorf("ciphertext too short")
+	}
+
+	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
+	plaintext, err := gcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return plaintext, nil
 }

@@ -17,7 +17,7 @@ func main() {
 	// Initialize keystore
 	keystoreType := os.Getenv("KEYSTORE_TYPE")
 	if keystoreType == "" {
-		keystoreType = "file" // Default to file-based keystore
+		keystoreType = "badger_test" // Default to file-based keystore
 	}
 
 	keystoreConfig := os.Getenv("KEYSTORE_CONFIG")

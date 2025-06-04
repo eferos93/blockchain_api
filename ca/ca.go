@@ -2,12 +2,23 @@ package ca
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
+	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"io"
 	"log"
+	"math/big"
 	"net/http"
+	"net/url"
 	"rest-api-go/keystore"
 	"time"
 )
@@ -177,25 +188,24 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 		"secret": req.Secret,
 	}
 
-	if req.Profile != "" {
-		enrollReq["profile"] = req.Profile
+	// Add CSR if provided
+	if req.CSRInfo.CN != "" {
+		csrPEM, privateKey, err := generateCSR(req.CSRInfo)
+		if err != nil {
+			log.Printf("Failed to generate CSR: %v", err)
+			http.Error(w, "Failed to generate CSR", http.StatusInternalServerError)
+			return
+		}
+
+		// Store the private key for future use
+		_ = privateKey
+
+		// Add CSR to enrollment request - Fabric CA expects it in the "csr" field
+		enrollReq["csr"] = csrPEM
 	}
 
-	// Add CSR info if provided
-	if req.CSRInfo.CN != "" {
-		csr := map[string]interface{}{
-			"CN": req.CSRInfo.CN,
-		}
-
-		if len(req.CSRInfo.Names) > 0 {
-			csr["names"] = req.CSRInfo.Names
-		}
-
-		if len(req.CSRInfo.Hosts) > 0 {
-			csr["hosts"] = req.CSRInfo.Hosts
-		}
-
-		enrollReq["csr"] = csr
+	if req.Profile != "" {
+		enrollReq["profile"] = req.Profile
 	}
 
 	reqBody, err := json.Marshal(enrollReq)
@@ -210,7 +220,18 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 		enrollURL += "?ca=" + req.CAConfig.CAName
 	}
 
-	resp, err := client.Post(enrollURL, "application/json", bytes.NewBuffer(reqBody))
+	// Create enrollment request
+	httpReq, err := http.NewRequest("POST", enrollURL, bytes.NewBuffer(reqBody))
+	if err != nil {
+		http.Error(w, "Failed to create request", http.StatusInternalServerError)
+		return
+	}
+
+	// Set Content-Type and Authorization headers
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.SetBasicAuth(req.EnrollmentID, req.Secret)
+
+	resp, err := client.Do(httpReq)
 	if err != nil {
 		log.Printf("Failed to enroll identity: %v", err)
 		http.Error(w, "Failed to connect to CA server", http.StatusInternalServerError)
@@ -271,41 +292,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// First, we need to enroll the admin to get authorization token
-	adminEnrollReq := map[string]interface{}{
-		"id":     req.AdminIdentity.EnrollmentID,
-		"secret": req.AdminIdentity.Secret,
-	}
-
 	client := createHTTPClient(req.CAConfig)
-
-	// Enroll admin
-	enrollURL := fmt.Sprintf("%s/api/v1/enroll", req.CAConfig.CAURL)
-	if req.CAConfig.CAName != "" {
-		enrollURL += "?ca=" + req.CAConfig.CAName
-	}
-
-	adminReqBody, err := json.Marshal(adminEnrollReq)
-	if err != nil {
-		http.Error(w, "Failed to marshal admin enrollment request", http.StatusInternalServerError)
-		return
-	}
-
-	adminResp, err := client.Post(enrollURL, "application/json", bytes.NewBuffer(adminReqBody))
-	if err != nil {
-		log.Printf("Failed to enroll admin: %v", err)
-		http.Error(w, "Failed to authenticate admin", http.StatusInternalServerError)
-		return
-	}
-	defer adminResp.Body.Close()
-
-	if adminResp.StatusCode != http.StatusOK {
-		http.Error(w, "Admin authentication failed", http.StatusUnauthorized)
-		return
-	}
-
-	// TODO: Extract certificate and create authorization header
-	// For now, we'll return a simplified response
 
 	// Prepare registration request
 	regReq := map[string]interface{}{
@@ -328,13 +315,46 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Make registration request (this would need proper authorization header in production)
+	// Make registration request with admin certificate authorization
 	registerURL := fmt.Sprintf("%s/api/v1/register", req.CAConfig.CAURL)
 	if req.CAConfig.CAName != "" {
 		registerURL += "?ca=" + req.CAConfig.CAName
 	}
 
-	regResp, err := client.Post(registerURL, "application/json", bytes.NewBuffer(regReqBody))
+	// Create registration request with admin certificate
+	regHttpReq, err := http.NewRequest("POST", registerURL, bytes.NewBuffer(regReqBody))
+	if err != nil {
+		http.Error(w, "Failed to create registration request", http.StatusInternalServerError)
+		return
+	}
+
+	regHttpReq.Header.Set("Content-Type", "application/json")
+
+	// Get admin credentials from keystore for proper authorization
+	adminCert, adminPrivateKey, err := getAdminCredentialsFromKeystore(req.AdminIdentity.EnrollmentID, req.CAConfig.MSPID)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to retrieve admin credentials: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Parse URL to get the path for signing
+	parsedURL, err := url.Parse(registerURL)
+	if err != nil {
+		http.Error(w, "Failed to parse registration URL", http.StatusInternalServerError)
+		return
+	}
+
+	// Create proper Fabric CA authorization token
+	authToken, err := createFabricCAAuthToken("POST", parsedURL.Path, string(regReqBody), adminCert, adminPrivateKey)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to create authorization token: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Set the authorization header with the proper format
+	regHttpReq.Header.Set("Authorization", authToken)
+
+	regResp, err := client.Do(regHttpReq)
 	if err != nil {
 		log.Printf("Failed to register identity: %v", err)
 		http.Error(w, "Failed to connect to CA server", http.StatusInternalServerError)
@@ -369,4 +389,164 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// GenerateCSR generates a Certificate Signing Request (CSR) for the given common name and hosts
+func GenerateCSR(cn string, hosts []string) (string, error) {
+	priv, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate private key: %w", err)
+	}
+
+	subject := pkix.Name{
+		CommonName: cn,
+	}
+
+	// Create the CSR template
+	csrTemplate := x509.CertificateRequest{
+		Subject:            subject,
+		DNSNames:           hosts,
+		SignatureAlgorithm: x509.ECDSAWithSHA256,
+	}
+
+	// Create the CSR
+	csrDER, err := x509.CreateCertificateRequest(rand.Reader, &csrTemplate, priv)
+	if err != nil {
+		return "", fmt.Errorf("failed to create certificate request: %w", err)
+	}
+
+	// PEM encode the CSR
+	var csrBuf bytes.Buffer
+	if err := pem.Encode(&csrBuf, &pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrDER}); err != nil {
+		return "", fmt.Errorf("failed to encode CSR to PEM: %w", err)
+	}
+
+	return csrBuf.String(), nil
+}
+
+// generateCSR generates a PEM-encoded Certificate Signing Request
+func generateCSR(csrInfo CSRInfo) (string, *ecdsa.PrivateKey, error) {
+	// Generate a new ECDSA private key
+	privateKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to generate private key: %v", err)
+	}
+
+	// Build the subject name
+	subject := pkix.Name{}
+	if csrInfo.CN != "" {
+		subject.CommonName = csrInfo.CN
+	}
+
+	// Add additional names if provided
+	for _, name := range csrInfo.Names {
+		if name.C != "" {
+			subject.Country = append(subject.Country, name.C)
+		}
+		if name.ST != "" {
+			subject.Province = append(subject.Province, name.ST)
+		}
+		if name.L != "" {
+			subject.Locality = append(subject.Locality, name.L)
+		}
+		if name.O != "" {
+			subject.Organization = append(subject.Organization, name.O)
+		}
+		if name.OU != "" {
+			subject.OrganizationalUnit = append(subject.OrganizationalUnit, name.OU)
+		}
+	}
+
+	// Create the CSR template
+	template := x509.CertificateRequest{
+		Subject:            subject,
+		SignatureAlgorithm: x509.ECDSAWithSHA256,
+		DNSNames:           csrInfo.Hosts,
+	}
+
+	// Create the CSR
+	csrBytes, err := x509.CreateCertificateRequest(rand.Reader, &template, privateKey)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to create certificate request: %v", err)
+	}
+
+	// Encode to PEM format
+	csrPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE REQUEST",
+		Bytes: csrBytes,
+	})
+
+	return string(csrPEM), privateKey, nil
+}
+
+// createFabricCAAuthToken creates the proper authorization token for Fabric CA REST API
+// Format: <base64_encoded_certificate>.<base64_encoded_signature>
+func createFabricCAAuthToken(method, urlPath, body string, certificate, privateKeyPEM string) (string, error) {
+	// Parse the certificate
+	certBlock, _ := pem.Decode([]byte(certificate))
+	if certBlock == nil {
+		return "", fmt.Errorf("failed to decode certificate PEM")
+	}
+
+	// Parse the private key
+	keyBlock, _ := pem.Decode([]byte(privateKeyPEM))
+	if keyBlock == nil {
+		return "", fmt.Errorf("failed to decode private key PEM")
+	}
+
+	privateKey, err := x509.ParseECPrivateKey(keyBlock.Bytes)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse private key: %v", err)
+	}
+
+	// Create the message to sign: method + urlPath + body + certificate
+	message := method + urlPath + body + base64.StdEncoding.EncodeToString(certBlock.Bytes)
+
+	// Create hash of the message
+	hash := sha256.Sum256([]byte(message))
+
+	// Sign the hash
+	r, s, err := ecdsa.Sign(rand.Reader, privateKey, hash[:])
+	if err != nil {
+		return "", fmt.Errorf("failed to sign message: %v", err)
+	}
+
+	// Encode signature as ASN.1 DER
+	signature, err := asn1.Marshal(struct{ R, S *big.Int }{r, s})
+	if err != nil {
+		return "", fmt.Errorf("failed to encode signature: %v", err)
+	}
+
+	// Create the authorization token
+	certB64 := base64.StdEncoding.EncodeToString(certBlock.Bytes)
+	sigB64 := base64.StdEncoding.EncodeToString(signature)
+
+	return certB64 + "." + sigB64, nil
+}
+
+// getAdminCredentialsFromKeystore retrieves admin certificate and private key from keystore
+func getAdminCredentialsFromKeystore(enrollmentID, mspID string) (string, string, error) {
+	// Use the global keystore instance if available
+	if keystore.GlobalKeystore != nil {
+		entry, err := keystore.GlobalKeystore.RetrieveKey(enrollmentID, mspID)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to retrieve admin credentials from global keystore: %v", err)
+		}
+		return entry.Certificate, entry.PrivateKey, nil
+	}
+
+	// Fallback to local BadgerDB keystore for backward compatibility
+	keystoreInstance, err := keystore.NewBadgerKeystore("./badger-keystore", "defaultPassword")
+	if err != nil {
+		return "", "", fmt.Errorf("failed to initialize BadgerDB keystore: %v", err)
+	}
+	defer keystoreInstance.Close()
+
+	// Retrieve the admin credentials
+	entry, err := keystoreInstance.RetrieveKey(enrollmentID, mspID)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to retrieve admin credentials from keystore: %v", err)
+	}
+
+	return entry.Certificate, entry.PrivateKey, nil
 }

@@ -2,6 +2,7 @@ package keystore
 
 import (
 	"crypto/x509"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"os"
@@ -9,29 +10,39 @@ import (
 	"time"
 )
 
-// KeystoreManager interface for different storage backends
-type KeystoreManager interface {
-	StoreKey(enrollmentID, mspID, privateKeyPEM, certificatePEM string) error
-	RetrieveKey(enrollmentID, mspID string) (*KeystoreEntry, error)
-	DeleteKey(enrollmentID, mspID string) error
-}
-
 // GlobalKeystore is the application-wide keystore instance
 var GlobalKeystore KeystoreManager
 
 // InitializeKeystore initializes the global keystore
 func InitializeKeystore(keystoreType, config, masterPassword string) error {
 	switch keystoreType {
-	case "file":
-		GlobalKeystore = NewEncryptedKeystore(config, masterPassword)
-	case "badger":
+	case "remote_badger":
+		// Remote BadgerDB keystore via HTTP API
+		var remoteBadgerConfig RemoteBadgerConfig
+		if err := json.Unmarshal([]byte(config), &remoteBadgerConfig); err != nil {
+			return fmt.Errorf("failed to parse remote BadgerDB config: %w", err)
+		}
+
+		remoteDB, err := NewRemoteBadgerKeystore(remoteBadgerConfig)
+		if err != nil {
+			return fmt.Errorf("failed to initialize remote BadgerDB keystore: %w", err)
+		}
+
+		// Test connection
+		if err := remoteDB.HealthCheck(); err != nil {
+			return fmt.Errorf("remote BadgerDB health check failed: %w", err)
+		}
+
+		GlobalKeystore = remoteDB
+	case "badger_test":
+		// Legacy test case - use local BadgerDB
 		db, err := NewBadgerKeystore(config, masterPassword)
 		if err != nil {
 			return fmt.Errorf("failed to initialize BadgerDB keystore: %w", err)
 		}
 		GlobalKeystore = db
 	default:
-		return fmt.Errorf("unsupported keystore type: %s (supported: file, badger)", keystoreType)
+		return fmt.Errorf("unsupported keystore type: %s (supported: badger, remote_badger)", keystoreType)
 	}
 	return nil
 }

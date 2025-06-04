@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # BadgerDB Keystore Service
+  badger-keystore:
+    build:
+      context: .
+      dockerfile: Dockerfile.badger-server
+    container_name: badger-keystore
+    ports:
+      - "8080:8080"
+    environment:
+      - BADGER_DB_PATH=/data/badger-keystore
+      - BADGER_MASTER_PASSWORD=${BADGER_MASTER_PASSWORD:-secure-master-password}
+      - BADGER_API_KEY=${BADGER_API_KEY:-secure-api-key-12345}
+      - PORT=8080
+    volumes:
+      - badger_data:/data
+    networks:
+      - fabric-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Main Fabric API Service
+  fabric-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fabric-api
+    ports:
+      - "3000:3000"
+    environment:
+      - KEYSTORE_TYPE=remote_badger
+      - KEYSTORE_CONFIG={"baseUrl":"http://badger-keystore:8080","apiKey":"${BADGER_API_KEY:-secure-api-key-12345}","timeoutSec":30}
+      - KEYSTORE_PASSWORD=unused-for-remote
+    depends_on:
+      badger-keystore:
+        condition: service_healthy
+    networks:
+      - fabric-network
+    restart: unless-stopped
+
+volumes:
+  badger_data:
+    driver: local
+
+networks:
+  fabric-network:
+    driver: bridge
