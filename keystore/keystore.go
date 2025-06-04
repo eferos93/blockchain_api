@@ -18,18 +18,18 @@ import (
 
 // KeystoreEntry represents a stored private key with metadata
 type KeystoreEntry struct {
-	EnrollmentID string    `json:"enrollmentId"`
-	MSPID        string    `json:"mspId"`
-	PrivateKey   string    `json:"privateKey"`   // Encrypted private key PEM
-	Certificate  string    `json:"certificate"`  // Public certificate PEM
-	CreatedAt    time.Time `json:"createdAt"`
+	EnrollmentID string     `json:"enrollmentId"`
+	MSPID        string     `json:"mspId"`
+	PrivateKey   string     `json:"privateKey"`  // Encrypted private key PEM
+	Certificate  string     `json:"certificate"` // Public certificate PEM
+	CreatedAt    time.Time  `json:"createdAt"`
 	ExpiresAt    *time.Time `json:"expiresAt,omitempty"`
 }
 
 // EncryptedKeystore manages encrypted private key storage
 type EncryptedKeystore struct {
-	storePath  string
-	masterKey  []byte
+	storePath string
+	masterKey []byte
 }
 
 // NewEncryptedKeystore creates a new encrypted keystore
@@ -37,10 +37,10 @@ func NewEncryptedKeystore(storePath string, masterPassword string) *EncryptedKey
 	// Derive a master key from password using PBKDF2
 	salt := []byte("fabric-api-keystore-salt") // In production, use random salt per keystore
 	masterKey := pbkdf2.Key([]byte(masterPassword), salt, 10000, 32, sha256.New)
-	
+
 	// Ensure store directory exists
 	os.MkdirAll(storePath, 0700)
-	
+
 	return &EncryptedKeystore{
 		storePath: storePath,
 		masterKey: masterKey,

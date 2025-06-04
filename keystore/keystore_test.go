@@ -148,5 +148,3 @@ func TestBadgerDBKeystore(t *testing.T) {
 		t.Error("Expected error when retrieving deleted key")
 	}
 }
-
-

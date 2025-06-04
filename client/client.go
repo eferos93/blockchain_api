@@ -32,9 +32,9 @@ type OrgSetup struct {
 	PeerEndpoint string `json:"peerEndpoint"`
 	GatewayPeer  string `json:"gatewayPeer"`
 	// New fields for keystore-based loading
-	UseKeystore    bool   `json:"useKeystore"`    // If true, load from keystore instead of files
-	EnrollmentID   string `json:"enrollmentId"`   // Required if UseKeystore is true
-	Gateway        client.Gateway
+	UseKeystore  bool   `json:"useKeystore"`  // If true, load from keystore instead of files
+	EnrollmentID string `json:"enrollmentId"` // Required if UseKeystore is true
+	Gateway      client.Gateway
 }
 
 // Combined request for OrgSetup and transaction
