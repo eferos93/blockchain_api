@@ -6,7 +6,6 @@ import (
 	"net/http"
 
 	"github.com/hyperledger/fabric-gateway/pkg/client"
-	// "rest-api-go/client"
 )
 
 // Invoke handles chaincode invoke requests.
