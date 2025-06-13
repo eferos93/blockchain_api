@@ -22,7 +22,7 @@ import (
 )
 
 // Store the initialized OrgSetups per session token (thread-safe)
-var orgSetupSessions sync.Map // map[string]*OrgSetup
+var orgSetupSessions sync.Map
 
 var store *sessions.CookieStore
 
@@ -126,27 +126,42 @@ func (setup OrgSetup) newIdentity() *identity.X509Identity {
 	var certificate *x509.Certificate
 	var err error
 
-	if setup.UseKeystore && setup.EnrollmentID != "" {
+	if setup.UseKeystore {
+		// Validate keystore configuration
+		if setup.EnrollmentID == "" {
+			panic(fmt.Errorf("enrollmentId is required when useKeystore is true"))
+		}
+		
+		if keystore.GlobalKeystore == nil {
+			panic(fmt.Errorf("global keystore not initialized - check server configuration"))
+		}
+		
 		// Load from keystore
 		certPath, _, err := keystore.GetKeyForFabricClient(setup.EnrollmentID, setup.MSPID)
 		if err != nil {
-			log.Printf("Failed to get key from keystore, falling back to file: %v", err)
-			certificate, err = loadCertificate(setup.CertPath)
-		} else {
-			certificate, err = loadCertificate(certPath)
+			panic(fmt.Errorf("failed to load certificate from keystore: %v", err))
 		}
+		
+		certificate, err = loadCertificate(certPath)
+		if err != nil {
+			panic(fmt.Errorf("failed to load certificate from keystore path: %v", err))
+		}
+		log.Printf("Successfully loaded certificate from keystore for enrollment ID: %s", setup.EnrollmentID)
 	} else {
-		// Load from file system
+		// File-based loading (legacy/testing)
+		if setup.CertPath == "" {
+			panic(fmt.Errorf("certPath is required when useKeystore is false"))
+		}
 		certificate, err = loadCertificate(setup.CertPath)
-	}
-
-	if err != nil {
-		panic(err)
+		if err != nil {
+			panic(fmt.Errorf("failed to load certificate from file: %v", err))
+		}
+		log.Printf("Loaded certificate from file: %s", setup.CertPath)
 	}
 
 	id, err := identity.NewX509Identity(setup.MSPID, certificate)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("failed to create X509 identity: %v", err))
 	}
 
 	return id
@@ -157,45 +172,64 @@ func (setup OrgSetup) newSign() identity.Sign {
 	var privateKeyPEM []byte
 	var err error
 
-	if setup.UseKeystore && setup.EnrollmentID != "" {
+	if setup.UseKeystore {
+		// Validate keystore configuration
+		if setup.EnrollmentID == "" {
+			panic(fmt.Errorf("enrollmentId is required when useKeystore is true"))
+		}
+		
+		if keystore.GlobalKeystore == nil {
+			panic(fmt.Errorf("global keystore not initialized - check server configuration"))
+		}
+		
 		// Load from keystore
 		_, keyDir, err := keystore.GetKeyForFabricClient(setup.EnrollmentID, setup.MSPID)
 		if err != nil {
-			log.Printf("Failed to get key from keystore, falling back to file: %v", err)
-			// Fall back to file system
-			files, err := os.ReadDir(setup.KeyPath)
-			if err != nil {
-				panic(fmt.Errorf("failed to read private key directory: %w", err))
-			}
-			privateKeyPEM, err = os.ReadFile(path.Join(setup.KeyPath, files[0].Name()))
-		} else {
-			// Load from keystore directory
-			files, err := os.ReadDir(keyDir)
-			if err != nil {
-				panic(fmt.Errorf("failed to read keystore private key directory: %w", err))
-			}
-			privateKeyPEM, err = os.ReadFile(path.Join(keyDir, files[0].Name()))
+			panic(fmt.Errorf("failed to load private key from keystore: %v", err))
 		}
-	} else {
-		// Load from file system
-		files, err := os.ReadDir(setup.KeyPath)
+		
+		privateKeyPEM, err = loadPrivateKeyFromDirectory(keyDir)
 		if err != nil {
-			panic(fmt.Errorf("failed to read private key directory: %w", err))
+			panic(fmt.Errorf("failed to load private key from keystore directory: %v", err))
 		}
-		privateKeyPEM, err = os.ReadFile(path.Join(setup.KeyPath, files[0].Name()))
+		log.Printf("Successfully loaded private key from keystore for enrollment ID: %s", setup.EnrollmentID)
+	} else {
+		// File-based loading (legacy/testing)
+		if setup.KeyPath == "" {
+			panic(fmt.Errorf("keyPath is required when useKeystore is false"))
+		}
+		privateKeyPEM, err = loadPrivateKeyFromDirectory(setup.KeyPath)
+		if err != nil {
+			panic(fmt.Errorf("failed to load private key from file: %v", err))
+		}
+		log.Printf("Loaded private key from file: %s", setup.KeyPath)
 	}
 
 	privateKey, err := identity.PrivateKeyFromPEM(privateKeyPEM)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("failed to parse private key: %v", err))
 	}
 
 	sign, err := identity.NewPrivateKeySign(privateKey)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("failed to create private key signer: %v", err))
 	}
 
 	return sign
+}
+
+// Helper function to load private key from directory
+func loadPrivateKeyFromDirectory(keyDir string) ([]byte, error) {
+	files, err := os.ReadDir(keyDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read private key directory: %w", err)
+	}
+	
+	if len(files) == 0 {
+		return nil, fmt.Errorf("no files found in private key directory: %s", keyDir)
+	}
+	
+	return os.ReadFile(path.Join(keyDir, files[0].Name()))
 }
 
 func loadCertificate(filename string) (*x509.Certificate, error) {
