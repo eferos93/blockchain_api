@@ -9,6 +9,37 @@ import (
 	"time"
 )
 
+// RemoteBadgerKeystore implements KeystoreManager for remote BadgerDB via HTTP API
+type RemoteBadgerKeystore struct {
+	baseURL    string
+	apiKey     string
+	httpClient *http.Client
+}
+
+// RemoteBadgerConfig contains configuration for remote BadgerDB connection
+type RemoteBadgerConfig struct {
+	BaseURL    string `json:"baseUrl"`    // Base URL of the remote BadgerDB API
+	APIKey     string `json:"apiKey"`     // API key for authentication
+	TimeoutSec int    `json:"timeoutSec"` // HTTP timeout in seconds (default: 30)
+}
+
+// APIRequest represents the request payload for remote BadgerDB operations
+type APIRequest struct {
+	EnrollmentID   string `json:"enrollmentId,omitempty"`
+	MSPID          string `json:"mspId,omitempty"`
+	PrivateKeyPEM  string `json:"privateKeyPem,omitempty"`
+	CertificatePEM string `json:"certificatePem,omitempty"`
+}
+
+// APIResponse represents the response from remote BadgerDB API
+type APIResponse struct {
+	Success bool           `json:"success"`
+	Message string         `json:"message,omitempty"`
+	Data    *KeystoreEntry `json:"data,omitempty"`
+	Keys    []string       `json:"keys,omitempty"` // For ListKeys response
+	Error   string         `json:"error,omitempty"`
+}
+
 // NewRemoteBadgerKeystore creates a new remote BadgerDB keystore client
 func NewRemoteBadgerKeystore(config RemoteBadgerConfig) (*RemoteBadgerKeystore, error) {
 	if config.BaseURL == "" {
@@ -74,6 +105,29 @@ func (r *RemoteBadgerKeystore) DeleteKey(enrollmentID, mspID string) error {
 
 	_, err := r.makeRequest("DELETE", "/keystore/delete", request)
 	return err
+}
+
+// ListKeys returns all stored key identifiers via remote BadgerDB API
+func (r *RemoteBadgerKeystore) ListKeys() ([]string, error) {
+	response, err := r.makeRequest("GET", "/keystore/list", APIRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	if response.Keys == nil {
+		return []string{}, nil
+	}
+
+	return response.Keys, nil
+}
+
+// Close closes the HTTP client connections (no-op for HTTP client)
+func (r *RemoteBadgerKeystore) Close() error {
+	// HTTP client doesn't need explicit closing, but we can close idle connections
+	if transport, ok := r.httpClient.Transport.(*http.Transport); ok {
+		transport.CloseIdleConnections()
+	}
+	return nil
 }
 
 // makeRequest makes an HTTP request to the remote BadgerDB API

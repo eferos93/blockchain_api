@@ -14,6 +14,12 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 )
 
+// BadgerKeystore uses BadgerDB for fast, lightweight encrypted key-value storage
+type BadgerKeystore struct {
+	db        *badger.DB
+	masterKey []byte
+}
+
 // NewBadgerKeystore creates a new BadgerDB-backed keystore
 func NewBadgerKeystore(dbPath string, masterPassword string) (*BadgerKeystore, error) {
 	// Configure BadgerDB options
@@ -148,6 +154,15 @@ func (b *BadgerKeystore) Close() error {
 // GarbageCollect runs BadgerDB garbage collection to reclaim space
 func (b *BadgerKeystore) GarbageCollect() error {
 	return b.db.RunValueLogGC(0.5)
+}
+
+// HealthCheck verifies that the BadgerDB database is operational
+func (b *BadgerKeystore) HealthCheck() error {
+	// Try a simple read operation to verify DB health
+	return b.db.View(func(txn *badger.Txn) error {
+		// Just check if we can start a transaction
+		return nil
+	})
 }
 
 // encrypt encrypts data using AES-GCM
