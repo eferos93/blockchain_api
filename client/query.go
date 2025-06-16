@@ -18,7 +18,7 @@ func (setup *OrgSetup) QueryWithBody(w http.ResponseWriter, reqBody RequestBody)
 	contract := network.GetContract(chainCodeName)
 	evaluateResponse, err := contract.EvaluateTransaction(function, args...)
 	if err != nil {
-		fmt.Fprintf(w, "Error: %s", err)
+		http.Error(w, "Query error from blockchain: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.Write(evaluateResponse)
