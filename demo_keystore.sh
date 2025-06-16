@@ -80,7 +80,7 @@ test_keystore_type() {
         "enrollmentId": "testuser_'$type'",
         "tlsCertPath": "./identities/blockClient/msp/tlscacerts/ca.crt",
         "peerEndpoint": "dns:///localhost:9051",
-        "gatewayPeer": "peer0.bsc.domain.com"
+        "gatewayPeer": "peer0.bsc.dt4h.com"
       }' || echo "Client initialization failed (expected if CA enrollment failed)"
     
     # Stop API
@@ -149,7 +149,7 @@ curl -s -X POST http://localhost:3000/client/ \
     "enrollmentId": "admin",
     "tlsCertPath": "./identities/blockClient/msp/tlscacerts/ca.crt",
     "peerEndpoint": "dns:///localhost:9051",
-    "gatewayPeer": "peer0.bsc.domain.com"
+    "gatewayPeer": "peer0.bsc.dt4h.com"
   }'
 
 echo -e "\n=== Cleanup ==="

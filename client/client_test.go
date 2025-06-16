@@ -22,7 +22,7 @@ func getTestOrgSetup() client.OrgSetup {
 		KeyPath:      filepath.Join(base, "keystore"),
 		TLSCertPath:  filepath.Join(base, "tlscacerts/ca.crt"),
 		PeerEndpoint: "dns:///localhost:9051",
-		GatewayPeer:  "peer0.bsc.domain.com",
+		GatewayPeer:  "peer0.bsc.dt4h.com",
 	}
 }
 
@@ -42,6 +42,8 @@ func TestClientHandler(t *testing.T) {
 	client.ClientHandler(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Errorf("Expected 200 OK, got %d. Body: %s", rec.Code, rec.Body.String())
+	} else {
+		t.Logf("Client initialized successfully: %s", rec.Body.String())
 	}
 }
 
@@ -81,6 +83,8 @@ func TestInvokeHandlerAfterInit(t *testing.T) {
 	client.InvokeHandler(invokeRec, invokeReq)
 	if invokeRec.Code != http.StatusOK {
 		t.Errorf("Expected 200 OK for invoke after init, got %d", invokeRec.Code)
+	} else {
+		t.Logf("Invoke successful: %s", invokeRec.Body.String())
 	}
 }
 
@@ -101,5 +105,7 @@ func TestQueryHandlerAfterInit(t *testing.T) {
 	client.QueryHandler(queryRec, queryReq)
 	if queryRec.Code != http.StatusOK {
 		t.Errorf("Expected 200 OK for query after init, got %d", queryRec.Code)
+	} else {
+		t.Logf("Query successful: %s", queryRec.Body.String())
 	}
 }
