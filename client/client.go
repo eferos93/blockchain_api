@@ -25,21 +25,26 @@ import (
 var orgSetupSessions sync.Map
 
 var store *sessions.CookieStore
+var storeOnce sync.Once
 
-func init() {
-	authKey, err := hex.DecodeString(os.Getenv("SESSION_AUTH_KEY"))
-	if err != nil {
-		log.Fatalf("Error decoding the authKey: %v", err)
-	}
-	encKey, err := hex.DecodeString(os.Getenv("SESSION_ENC_KEY"))
-	if err != nil {
-		log.Fatalf("Error decoding the encKey: %v", err)
-	}
+// getSessionStore initializes the session store lazily
+func getSessionStore() *sessions.CookieStore {
+	storeOnce.Do(func() {
+		authKey, err := hex.DecodeString(os.Getenv("SESSION_AUTH_KEY"))
+		if err != nil {
+			log.Fatalf("Error decoding the authKey: %v", err)
+		}
+		encKey, err := hex.DecodeString(os.Getenv("SESSION_ENC_KEY"))
+		if err != nil {
+			log.Fatalf("Error decoding the encKey: %v", err)
+		}
 
-	if len(authKey) == 0 || len(encKey) == 0 {
-		log.Fatal("SESSION_AUTH_KEY and SESSION_ENC_KEY environment variables must be set and non-empty.")
-	}
-	store = sessions.NewCookieStore(authKey, encKey)
+		if len(authKey) == 0 || len(encKey) == 0 {
+			log.Fatal("SESSION_AUTH_KEY and SESSION_ENC_KEY environment variables must be set and non-empty.")
+		}
+		store = sessions.NewCookieStore(authKey, encKey)
+	})
+	return store
 }
 
 // Helper to compute SHA256 hash of PEM-encoded identity
@@ -242,8 +247,9 @@ func loadCertificate(filename string) (*x509.Certificate, error) {
 
 // Handler for /client/invoke
 func InvokeHandler(w http.ResponseWriter, r *http.Request) {
-	session, _ := store.Get(r, "fabric-session")
+	session, _ := getSessionStore().Get(r, "fabric-session")
 	orgSetup, ok := GetOrgSetup(session.ID)
+
 	if !ok {
 		http.Error(w, "Fabric client not initialized for this session. Call /client/ first.", http.StatusBadRequest)
 		return
@@ -268,7 +274,7 @@ func QueryHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Missing required query parameters", http.StatusBadRequest)
 			return
 		}
-		session, _ := store.Get(r, "fabric-session")
+		session, _ := getSessionStore().Get(r, "fabric-session")
 		orgSetup, ok := GetOrgSetup(session.ID)
 		if !ok {
 			http.Error(w, "Fabric client not initialized for this session. Call /client/ first.", http.StatusBadRequest)
@@ -293,7 +299,7 @@ func ClientHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid OrgSetup: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	session, _ := store.Get(r, "fabric-session")
+	session, _ := getSessionStore().Get(r, "fabric-session")
 	if err := InitializeWithSession(orgConfig, session, w, r); err != nil {
 		http.Error(w, "Error initializing org: "+err.Error(), http.StatusInternalServerError)
 		return
@@ -304,7 +310,7 @@ func ClientHandler(w http.ResponseWriter, r *http.Request) {
 
 // Handler for /client/close
 func CloseHandler(w http.ResponseWriter, r *http.Request) {
-	session, _ := store.Get(r, "fabric-session")
+	session, _ := getSessionStore().Get(r, "fabric-session")
 	orgSetup, ok := GetOrgSetup(session.ID)
 	if !ok {
 		http.Error(w, "No active Fabric client connection for this session.", http.StatusBadRequest)

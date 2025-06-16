@@ -5,11 +5,18 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 
 	"rest-api-go/client"
 )
+
+func init() {
+	// Set environment variables for tests
+	os.Setenv("SESSION_AUTH_KEY", "2ae78d6e2a6eb4f722422ae1d8da5c44557ee955da562129e472bebcdff2b3d6")
+	os.Setenv("SESSION_ENC_KEY", "3b0b45871551d858151aa7c1fd808673e455059503ee66aaba63cf128ec4f42c")
+}
 
 func getTestOrgSetup() client.OrgSetup {
 	// Use test keys and certs from the identities folder
