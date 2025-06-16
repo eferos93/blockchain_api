@@ -82,7 +82,7 @@ func TestInvokeHandlerAfterInit(t *testing.T) {
 	invokeRec := httptest.NewRecorder()
 	client.InvokeHandler(invokeRec, invokeReq)
 	if invokeRec.Code != http.StatusOK {
-		t.Errorf("Expected 200 OK for invoke after init, got %d", invokeRec.Code)
+		t.Errorf("Error Code: %d; Error message: %s", invokeRec.Code, invokeRec.Body.String())
 	} else {
 		t.Logf("Invoke successful: %s", invokeRec.Body.String())
 	}
@@ -104,7 +104,7 @@ func TestQueryHandlerAfterInit(t *testing.T) {
 	queryRec := httptest.NewRecorder()
 	client.QueryHandler(queryRec, queryReq)
 	if queryRec.Code != http.StatusOK {
-		t.Errorf("Expected 200 OK for query after init, got %d", queryRec.Code)
+		t.Errorf("Error Code %d; Error Message: %s", queryRec.Code, queryRec.Body.String())
 	} else {
 		t.Logf("Query successful: %s", queryRec.Body.String())
 	}
