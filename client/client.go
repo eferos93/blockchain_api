@@ -131,17 +131,17 @@ func (setup OrgSetup) newIdentity() *identity.X509Identity {
 		if setup.EnrollmentID == "" {
 			panic(fmt.Errorf("enrollmentId is required when useKeystore is true"))
 		}
-		
+
 		if keystore.GlobalKeystore == nil {
 			panic(fmt.Errorf("global keystore not initialized - check server configuration"))
 		}
-		
+
 		// Load from keystore
 		certPath, _, err := keystore.GetKeyForFabricClient(setup.EnrollmentID, setup.MSPID)
 		if err != nil {
 			panic(fmt.Errorf("failed to load certificate from keystore: %v", err))
 		}
-		
+
 		certificate, err = loadCertificate(certPath)
 		if err != nil {
 			panic(fmt.Errorf("failed to load certificate from keystore path: %v", err))
@@ -177,17 +177,17 @@ func (setup OrgSetup) newSign() identity.Sign {
 		if setup.EnrollmentID == "" {
 			panic(fmt.Errorf("enrollmentId is required when useKeystore is true"))
 		}
-		
+
 		if keystore.GlobalKeystore == nil {
 			panic(fmt.Errorf("global keystore not initialized - check server configuration"))
 		}
-		
+
 		// Load from keystore
 		_, keyDir, err := keystore.GetKeyForFabricClient(setup.EnrollmentID, setup.MSPID)
 		if err != nil {
 			panic(fmt.Errorf("failed to load private key from keystore: %v", err))
 		}
-		
+
 		privateKeyPEM, err = loadPrivateKeyFromDirectory(keyDir)
 		if err != nil {
 			panic(fmt.Errorf("failed to load private key from keystore directory: %v", err))
@@ -224,11 +224,11 @@ func loadPrivateKeyFromDirectory(keyDir string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to read private key directory: %w", err)
 	}
-	
+
 	if len(files) == 0 {
 		return nil, fmt.Errorf("no files found in private key directory: %s", keyDir)
 	}
-	
+
 	return os.ReadFile(path.Join(keyDir, files[0].Name()))
 }
 
