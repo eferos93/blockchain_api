@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"os"
 
-	caapi "rest-api-go/ca"
-	clientapi "rest-api-go/client"
-	"rest-api-go/keystore"
+	caapi "blockchain-api/ca"
+	clientapi "blockchain-api/client"
+	"blockchain-api/keystore"
 
 	"github.com/gorilla/mux"
 )
