@@ -104,14 +104,12 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 	t.Logf("Register Response Body: %s", regRecorder.Body.String())
 
 	if regRecorder.Code == http.StatusInternalServerError {
-		t.Logf("CA server might not be running at localhost:10055")
-		t.Skip("Skipping real CA test - server not available")
+		t.Fatal("CA server might not be running at localhost:10055")
 		return
 	}
 
 	if regRecorder.Code == http.StatusUnauthorized {
-		t.Logf("Admin authentication failed - check admin credentials")
-		t.Skip("Skipping test - admin auth failed")
+		t.Fatalf("Admin authentication failed - check admin credentials")
 		return
 	}
 
