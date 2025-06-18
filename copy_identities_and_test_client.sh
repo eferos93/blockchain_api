@@ -6,7 +6,7 @@ set -e
 mkdir -p ./identities/
 
 # Copy the identities folder
-# pwd
+
 sudo cp -r ../fabric/identities/* ./identities/
 
 echo "Identities copied. Running tests..."

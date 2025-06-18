@@ -461,20 +461,9 @@ func getAdminCredentialsFromKeystore(enrollmentID, mspID string) (string, string
 			return "", "", fmt.Errorf("failed to retrieve admin credentials from global keystore: %v", err)
 		}
 		return entry.Certificate, entry.PrivateKey, nil
+	} else {
+		return "", "", fmt.Errorf("keystore not initialized")
+		// Alternatively, you can implement a fallback mechanism to retrieve admin credentials
+		// from a different source if the keystore is not available.
 	}
-
-	// Fallback to local BadgerDB keystore for backward compatibility
-	keystoreInstance, err := keystore.NewBadgerKeystore("./badger-keystore", "defaultPassword")
-	if err != nil {
-		return "", "", fmt.Errorf("failed to initialize BadgerDB keystore: %v", err)
-	}
-	defer keystoreInstance.Close()
-
-	// Retrieve the admin credentials
-	entry, err := keystoreInstance.RetrieveKey(enrollmentID, mspID)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to retrieve admin credentials from keystore: %v", err)
-	}
-
-	return entry.Certificate, entry.PrivateKey, nil
 }

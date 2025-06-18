@@ -16,13 +16,6 @@ var GlobalKeystore KeystoreManager
 // InitializeKeystore initializes the global keystore
 func InitializeKeystore(keystoreType, config, masterPassword string) error {
 	switch keystoreType {
-	case "badger":
-		// Local BadgerDB keystore
-		db, err := NewBadgerKeystore(config, masterPassword)
-		if err != nil {
-			return fmt.Errorf("failed to initialize BadgerDB keystore: %w", err)
-		}
-		GlobalKeystore = db
 	case "remote_badger":
 		// Remote BadgerDB keystore via HTTP API
 		var remoteBadgerConfig RemoteBadgerConfig
@@ -41,15 +34,8 @@ func InitializeKeystore(keystoreType, config, masterPassword string) error {
 		}
 
 		GlobalKeystore = remoteDB
-	case "badger_test":
-		// Legacy test case - use local BadgerDB
-		db, err := NewBadgerKeystore(config, masterPassword)
-		if err != nil {
-			return fmt.Errorf("failed to initialize BadgerDB keystore: %w", err)
-		}
-		GlobalKeystore = db
 	default:
-		return fmt.Errorf("unsupported keystore type: %s (supported: badger, remote_badger)", keystoreType)
+		return fmt.Errorf("unsupported keystore type: %s (supported: remote_badger for keystore, or use file-based paths directly)", keystoreType)
 	}
 	return nil
 }

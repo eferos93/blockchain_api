@@ -1,7 +1,6 @@
 package keystore_test
 
 import (
-	"rest-api-go/keystore"
 	"testing"
 )
 
@@ -27,65 +26,31 @@ wCgYIKoZIzj0EAwIDSAAwRQIhATest1234567890ABCDEFSignatureDataHere1234
 -----END CERTIFICATE-----`
 )
 
-func TestBadgerDBKeystore(t *testing.T) {
-	// Create temporary directory for BadgerDB
-	tempDir := t.TempDir()
-	masterPassword := "test-password-123"
+// NOTE: This package now supports two keystore modes:
+// 1. File-based mode: Direct file paths to certificates and keys (no keystore needed)
+// 2. Remote BadgerDB mode: HTTP API to remote BadgerDB server
+//
+// Local BadgerDB implementation has been removed to simplify the architecture.
+// Use remote BadgerDB server for centralized key management or file-based paths for simple setups.
 
-	// Initialize BadgerDB keystore
-	ks, err := keystore.NewBadgerKeystore(tempDir, masterPassword)
-	if err != nil {
-		t.Fatalf("Failed to create BadgerDB keystore: %v", err)
+func TestKeystoreConstants(t *testing.T) {
+	// Test that our test constants are properly formatted
+	if len(testPrivateKey) == 0 {
+		t.Error("Test private key should not be empty")
 	}
-	defer ks.Close()
-
-	// Test storing a key
-	enrollmentID := "testuser"
-	mspID := "Org1MSP"
-
-	err = ks.StoreKey(enrollmentID, mspID, testPrivateKey, testCertificate)
-	if err != nil {
-		t.Fatalf("Failed to store key: %v", err)
+	if len(testCertificate) == 0 {
+		t.Error("Test certificate should not be empty")
 	}
 
-	// Test retrieving the key
-	entry, err := ks.RetrieveKey(enrollmentID, mspID)
-	if err != nil {
-		t.Fatalf("Failed to retrieve key: %v", err)
+	// Basic validation that the keys contain expected PEM headers
+	if !contains(testPrivateKey, "-----BEGIN PRIVATE KEY-----") {
+		t.Error("Test private key should contain PEM header")
 	}
+	if !contains(testCertificate, "-----BEGIN CERTIFICATE-----") {
+		t.Error("Test certificate should contain PEM header")
+	}
+}
 
-	// Verify data
-	if entry.EnrollmentID != enrollmentID {
-		t.Errorf("Expected enrollment ID %s, got %s", enrollmentID, entry.EnrollmentID)
-	}
-	if entry.MSPID != mspID {
-		t.Errorf("Expected MSP ID %s, got %s", mspID, entry.MSPID)
-	}
-	if entry.PrivateKey != testPrivateKey {
-		t.Errorf("Private key mismatch")
-	}
-	if entry.Certificate != testCertificate {
-		t.Errorf("Certificate mismatch")
-	}
-
-	// Test listing keys
-	keyIDs, err := ks.ListKeys()
-	if err != nil {
-		t.Fatalf("Failed to list keys: %v", err)
-	}
-	if len(keyIDs) != 1 {
-		t.Errorf("Expected 1 key, got %d", len(keyIDs))
-	}
-
-	// Test deleting key
-	err = ks.DeleteKey(enrollmentID, mspID)
-	if err != nil {
-		t.Fatalf("Failed to delete key: %v", err)
-	}
-
-	// Verify key is deleted
-	_, err = ks.RetrieveKey(enrollmentID, mspID)
-	if err == nil {
-		t.Error("Expected error when retrieving deleted key")
-	}
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && s[:len(substr)] == substr
 }
