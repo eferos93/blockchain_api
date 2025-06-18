@@ -51,3 +51,54 @@ This will build the Docker image and start the API service, exposing it on port 
 ```bash
 docker-compose down
 ```
+
+## Keystore Configuration
+
+The API supports two keystore modes for managing cryptographic keys and certificates:
+
+### 1. File-based Keystore (Default - for testing)
+
+The file-based keystore loads keys and certificates directly from the filesystem. This mode is designed for testing and development purposes.
+
+- **Environment Variable**: `KEYSTORE_TYPE=file_based`
+- **Configuration**: `KEYSTORE_CONFIG` should point to the base directory containing MSP structures
+- **Default Path**: `./identities`
+
+Expected directory structure:
+```
+identities/
+├── user1/
+│   └── msp/
+│       ├── keystore/
+│       │   └── key.pem
+│       └── signcerts/
+│           └── cert.pem
+└── user2/
+    └── msp/
+        ├── keystore/
+        │   └── key.pem
+        └── signcerts/
+            └── cert.pem
+```
+
+### 2. Remote BadgerDB Keystore (for production)
+
+The remote BadgerDB keystore connects to a remote BadgerDB server via HTTP API for centralized key management.
+
+- **Environment Variable**: `KEYSTORE_TYPE=remote_badger`
+- **Configuration**: `KEYSTORE_CONFIG` should be a JSON string with remote server configuration
+
+Example configuration:
+```json
+{
+  "serverURL": "http://badger-server:8080",
+  "timeout": 30,
+  "authToken": "your-auth-token"
+}
+```
+
+### Environment Variables
+
+- `KEYSTORE_TYPE`: Type of keystore (`file_based` or `remote_badger`)
+- `KEYSTORE_CONFIG`: Configuration for the keystore (path for file-based, JSON for remote)
+- `KEYSTORE_PASSWORD`: Password for keystore operations (required)

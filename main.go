@@ -17,12 +17,12 @@ func main() {
 	// Initialize keystore
 	keystoreType := os.Getenv("KEYSTORE_TYPE")
 	if keystoreType == "" {
-		keystoreType = "badger_test" // Default to file-based keystore
+		keystoreType = "file_based" // Default to file-based keystore for tests
 	}
 
 	keystoreConfig := os.Getenv("KEYSTORE_CONFIG")
 	if keystoreConfig == "" {
-		keystoreConfig = "./secure-keystore" // Default path
+		keystoreConfig = "./identities" // Default path for file-based keystore
 	}
 
 	keystorePassword := os.Getenv("KEYSTORE_PASSWORD")

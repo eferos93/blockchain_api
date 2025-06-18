@@ -1,7 +1,11 @@
 package keystore_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
+
+	"rest-api-go/keystore"
 )
 
 const (
@@ -53,4 +57,146 @@ func TestKeystoreConstants(t *testing.T) {
 
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && s[:len(substr)] == substr
+}
+
+func TestFileBasedKeystore(t *testing.T) {
+	// Create a temporary directory structure for testing
+	tempDir := t.TempDir()
+
+	// Create test MSP structure
+	enrollmentID := "testuser"
+	mspPath := filepath.Join(tempDir, enrollmentID, "msp")
+
+	// Create directories
+	err := os.MkdirAll(filepath.Join(mspPath, "signcerts"), 0755)
+	if err != nil {
+		t.Fatalf("Failed to create signcerts directory: %v", err)
+	}
+
+	err = os.MkdirAll(filepath.Join(mspPath, "keystore"), 0755)
+	if err != nil {
+		t.Fatalf("Failed to create keystore directory: %v", err)
+	}
+
+	// Write test certificate and key
+	certPath := filepath.Join(mspPath, "signcerts", "cert.pem")
+	keyPath := filepath.Join(mspPath, "keystore", "key.pem")
+
+	err = os.WriteFile(certPath, []byte(testCertificate), 0644)
+	if err != nil {
+		t.Fatalf("Failed to write test certificate: %v", err)
+	}
+
+	err = os.WriteFile(keyPath, []byte(testPrivateKey), 0600)
+	if err != nil {
+		t.Fatalf("Failed to write test private key: %v", err)
+	}
+
+	// Test file-based keystore
+	fileBased := keystore.NewFileBasedKeystore(tempDir)
+
+	// Test RetrieveKey
+	entry, err := fileBased.RetrieveKey(enrollmentID, "testMSP")
+	if err != nil {
+		t.Fatalf("Failed to retrieve key: %v", err)
+	}
+
+	if entry.EnrollmentID != enrollmentID {
+		t.Errorf("Expected enrollment ID %s, got %s", enrollmentID, entry.EnrollmentID)
+	}
+
+	if entry.MSPID != "testMSP" {
+		t.Errorf("Expected MSP ID 'testMSP', got %s", entry.MSPID)
+	}
+
+	if entry.Certificate != testCertificate {
+		t.Error("Certificate content does not match")
+	}
+
+	if entry.PrivateKey != testPrivateKey {
+		t.Error("Private key content does not match")
+	}
+
+	// Test that other operations are no-ops but don't error
+	err = fileBased.StoreKey("test", "testMSP", "key", "cert")
+	if err != nil {
+		t.Errorf("StoreKey should be no-op but returned error: %v", err)
+	}
+
+	err = fileBased.DeleteKey("test", "testMSP")
+	if err != nil {
+		t.Errorf("DeleteKey should be no-op but returned error: %v", err)
+	}
+
+	keys, err := fileBased.ListKeys()
+	if err != nil {
+		t.Errorf("ListKeys should be no-op but returned error: %v", err)
+	}
+	if keys != nil {
+		t.Error("ListKeys should return nil")
+	}
+
+	err = fileBased.Close()
+	if err != nil {
+		t.Errorf("Close should be no-op but returned error: %v", err)
+	}
+
+	err = fileBased.HealthCheck()
+	if err != nil {
+		t.Errorf("HealthCheck should be no-op but returned error: %v", err)
+	}
+}
+
+func TestKeystoreInitialization(t *testing.T) {
+	// Test file-based keystore initialization
+	tempDir := t.TempDir()
+
+	err := keystore.InitializeKeystore("file_based", tempDir, "")
+	if err != nil {
+		t.Fatalf("Failed to initialize file-based keystore: %v", err)
+	}
+
+	if keystore.GlobalKeystore == nil {
+		t.Error("GlobalKeystore should be initialized")
+	}
+
+	// Test unsupported keystore type
+	err = keystore.InitializeKeystore("unsupported", "", "")
+	if err == nil {
+		t.Error("Should return error for unsupported keystore type")
+	}
+}
+
+func TestFileBasedKeystoreWithRealFiles(t *testing.T) {
+	// Test with actual identities directory if it exists
+	identitiesPath := "../identities"
+	if _, err := os.Stat(identitiesPath); os.IsNotExist(err) {
+		t.Skip("Skipping test - identities directory not found")
+	}
+
+	fileBased := keystore.NewFileBasedKeystore(identitiesPath)
+
+	// Test retrieving a key that should exist
+	entry, err := fileBased.RetrieveKey("blockClient", "testMSP")
+	if err != nil {
+		t.Logf("Could not retrieve blockClient key (expected if files don't exist): %v", err)
+		return
+	}
+
+	if entry.EnrollmentID != "blockClient" {
+		t.Errorf("Expected enrollment ID 'blockClient', got %s", entry.EnrollmentID)
+	}
+
+	if entry.MSPID != "testMSP" {
+		t.Errorf("Expected MSP ID 'testMSP', got %s", entry.MSPID)
+	}
+
+	// Verify we got some certificate and key data
+	if len(entry.Certificate) == 0 {
+		t.Error("Certificate should not be empty")
+	}
+
+	if len(entry.PrivateKey) == 0 {
+		t.Error("Private key should not be empty")
+	}
 }

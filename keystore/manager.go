@@ -34,6 +34,10 @@ func InitializeKeystore(keystoreType, config, masterPassword string) error {
 		}
 
 		GlobalKeystore = remoteDB
+	case "file_based":
+		// File-based keystore for test purposes
+		GlobalKeystore = NewFileBasedKeystore(config)
+		return nil
 	default:
 		return fmt.Errorf("unsupported keystore type: %s (supported: remote_badger for keystore, or use file-based paths directly)", keystoreType)
 	}
