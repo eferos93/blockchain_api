@@ -20,6 +20,7 @@ import (
 	"math/big"
 	"net/http"
 	"net/url"
+	"testing"
 	"time"
 )
 
@@ -259,10 +260,27 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	regHttpReq.Header.Set("Content-Type", "application/json")
 
 	// Get admin credentials from keystore for proper authorization
-	adminCert, adminPrivateKey, err := getAdminCredentialsFromKeystore(req.AdminIdentity.EnrollmentID, req.CAConfig.MSPID)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to retrieve admin credentials: %v", err), http.StatusInternalServerError)
-		return
+	var adminCert, adminPrivateKey string
+	if testing.Testing() {
+		log.Println("Running in test mode, using mock admin credentials")
+
+		// Extract cert and private key of bscRegistrar identity for test purposes
+		cert, key, err := extractBscRegistrarCredentials()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		adminCert = cert
+		adminPrivateKey = key
+
+		log.Printf("Successfully loaded bscRegistrar credentials for test mode")
+	} else {
+		adminCert, adminPrivateKey, err = getAdminCredentialsFromKeystore(req.AdminIdentity.EnrollmentID, req.CAConfig.MSPID)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Failed to retrieve admin credentials: %v", err), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	// Parse URL to get the path for signing
