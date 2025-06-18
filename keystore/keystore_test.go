@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"rest-api-go/keystore"
+	"blockchain-api/keystore"
 )
 
 const (

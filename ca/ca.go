@@ -1,6 +1,7 @@
 package ca
 
 import (
+	"blockchain-api/keystore"
 	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
@@ -19,7 +20,6 @@ import (
 	"math/big"
 	"net/http"
 	"net/url"
-	"rest-api-go/keystore"
 	"time"
 )
 

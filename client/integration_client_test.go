@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"rest-api-go/client"
+	"blockchain-api/client"
 )
 
 func init() {

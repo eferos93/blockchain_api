@@ -1,6 +1,7 @@
 package client
 
 import (
+	"blockchain-api/keystore"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
@@ -10,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"rest-api-go/keystore"
 	"sync"
 	"time"
 
