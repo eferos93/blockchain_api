@@ -78,12 +78,12 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 	registerRequest := ca.RegistrationRequest{
 		CAConfig: caConfig,
 		AdminIdentity: ca.AdminIdentity{
-			EnrollmentID: "admin",
-			Secret:       "adminpw",
+			EnrollmentID: "registrar0",
+			Secret:       "registrarpw",
 		},
 		RegistrationID: "testuser123",
 		Type:           "client",
-		Affiliation:    "bsc",
+		// Affiliation:    "", // Omit affiliation completely to match registrar0
 		Attributes: []ca.Attribute{
 			{
 				Name:  "role",
