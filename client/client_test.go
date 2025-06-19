@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"rest-api-go/client"
+	"blockchain-api/client"
 )
 
 func getTestOrgSetup() client.OrgSetup {

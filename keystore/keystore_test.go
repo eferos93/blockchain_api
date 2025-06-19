@@ -1,7 +1,7 @@
 package keystore_test
 
 import (
-	"rest-api-go/keystore"
+	"blockchain-api/keystore"
 	"testing"
 )
 

@@ -1,11 +1,11 @@
 package ca_test
 
 import (
+	"blockchain-api/ca"
 	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"rest-api-go/ca"
 	"testing"
 )
 

@@ -1,4 +1,4 @@
-module rest-api-go
+module blockchain-api
 
 go 1.24.3
 
