@@ -22,7 +22,7 @@ func getTestOrgSetup() client.OrgSetup {
 		KeyPath:      filepath.Join(base, "keystore"),
 		TLSCertPath:  filepath.Join(base, "tlscacerts/ca.crt"),
 		PeerEndpoint: "dns:///localhost:9051",
-		GatewayPeer:  "peer0.bsc.domain.com",
+		GatewayPeer:  "peer0.bsc.dt4h.com",
 	}
 }
 
@@ -80,8 +80,9 @@ func TestInvokeHandlerAfterInit(t *testing.T) {
 	invokeRec := httptest.NewRecorder()
 	client.InvokeHandler(invokeRec, invokeReq)
 	if invokeRec.Code != http.StatusOK {
-		t.Errorf("Expected 200 OK for invoke after init, got %d", invokeRec.Code)
+		t.Errorf("Expected 200 OK for invoke after init, got %d; Message: %s", invokeRec.Code, invokeRec.Body.String())
 	}
+	t.Logf("Invoke Response: %s", invokeRec.Body.String())
 }
 
 func TestQueryHandlerAfterInit(t *testing.T) {
@@ -100,6 +101,7 @@ func TestQueryHandlerAfterInit(t *testing.T) {
 	queryRec := httptest.NewRecorder()
 	client.QueryHandler(queryRec, queryReq)
 	if queryRec.Code != http.StatusOK {
-		t.Errorf("Expected 200 OK for query after init, got %d", queryRec.Code)
+		t.Errorf("Expected 200 OK for query after init, got %d; Message: %s", queryRec.Code, queryRec.Body.String())
 	}
+	t.Logf("Query Response: %s", queryRec.Body.String())
 }
