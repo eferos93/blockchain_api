@@ -27,17 +27,17 @@ func (setup *OrgSetup) Invoke(w http.ResponseWriter, r *http.Request) {
 	txn_proposal, err := contract.NewProposal(reqBody.Function, client.WithArguments(reqBody.Args...))
 
 	if err != nil {
-		fmt.Fprintf(w, "Error creating txn proposal: %s", err)
+		http.Error(w, "Error creating txn proposal: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 	txn_endorsed, err := txn_proposal.Endorse()
 	if err != nil {
-		fmt.Fprintf(w, "Error endorsing txn: %s", err)
+		http.Error(w, "Error endorsing txn: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 	txn_committed, err := txn_endorsed.Submit()
 	if err != nil {
-		fmt.Fprintf(w, "Error submitting transaction: %s", err)
+		http.Error(w, "Error submitting transaction: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 	fmt.Fprintf(w, "Transaction ID : %s Response: %s", txn_committed.TransactionID(), txn_endorsed.Result())
@@ -51,17 +51,17 @@ func (setup *OrgSetup) InvokeWithBody(w http.ResponseWriter, reqBody RequestBody
 	contract := network.GetContract(reqBody.ChaincodeId)
 	txn_proposal, err := contract.NewProposal(reqBody.Function, client.WithArguments(reqBody.Args...))
 	if err != nil {
-		fmt.Fprintf(w, "Error creating txn proposal: %s", err)
+		http.Error(w, "Error creating txn proposal:"+err.Error(), http.StatusBadRequest)
 		return
 	}
 	txn_endorsed, err := txn_proposal.Endorse()
 	if err != nil {
-		fmt.Fprintf(w, "Error endorsing txn: %s", err)
+		http.Error(w, "Error endorsing txn: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 	txn_committed, err := txn_endorsed.Submit()
 	if err != nil {
-		fmt.Fprintf(w, "Error submitting transaction: %s", err)
+		http.Error(w, "Error submitting transaction: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 	fmt.Fprintf(w, "Transaction ID : %s Response: %s", txn_committed.TransactionID(), txn_endorsed.Result())
