@@ -3,6 +3,8 @@
 
 set -e
 
+mkdir -p ./identities
+echo "Copying identities from ../fabric/application-go/identities to ./identities..."
 # Copy the identities folder
 pwd
 sudo cp -r ../fabric/application-go/identities/* ./identities/
@@ -14,4 +16,4 @@ set -a
 source .env
 set +a
 
-go test ./client
+go test ./client -v
