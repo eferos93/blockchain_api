@@ -130,29 +130,24 @@ func ValidateCertificate(certPEM string) error {
 }
 
 // GetKeyForFabricClient retrieves key material for use with Fabric client
-func GetKeyForFabricClient(enrollmentID, mspID string) (certPath, keyDir string, err error) {
+func GetKeyForFabricClient(enrollmentID, mspID string) (certPEM []byte, keyPEM []byte, err error) {
 	if GlobalKeystore == nil {
-		return "", "", fmt.Errorf("keystore not initialized")
+		return nil, nil, fmt.Errorf("keystore not initialized")
 	}
 
 	entry, err := GlobalKeystore.RetrieveKey(enrollmentID, mspID)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to retrieve key: %w", err)
+		return nil, nil, fmt.Errorf("failed to retrieve key: %w", err)
 	}
 
 	// Validate certificate
 	if err := ValidateCertificate(entry.Certificate); err != nil {
-		return "", "", fmt.Errorf("certificate validation failed: %w", err)
+		return nil, nil, fmt.Errorf("certificate validation failed: %w", err)
 	}
 
-	// Create temporary MSP structure for this session
-	tempDir := filepath.Join(os.TempDir(), "fabric-keystore", enrollmentID)
-	if err := CreateMSPStructure(enrollmentID, mspID, tempDir); err != nil {
-		return "", "", fmt.Errorf("failed to create MSP structure: %w", err)
-	}
+	// Return the certificate and private key as byte arrays (PEM format)
+	certPEM = []byte(entry.Certificate)
+	keyPEM = []byte(entry.PrivateKey)
 
-	certPath = filepath.Join(tempDir, enrollmentID, "msp", "signcerts", "cert.pem")
-	keyDir = filepath.Join(tempDir, enrollmentID, "msp", "keystore")
-
-	return certPath, keyDir, nil
+	return certPEM, keyPEM, nil
 }
