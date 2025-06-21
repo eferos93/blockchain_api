@@ -1,13 +1,4 @@
-curl http://localhost:3000/client -H "Content-Type: application/json" -d '{
-  "orgName": "bsc",
-  "mspId": "bscMSP",
-  "cryptoPath": "../../fabric/identities/blockClient/msp",
-  "certPath": "../../fabric/identities/blockClient/msp/signcerts/cert.pem",
-  "keyPath": "../../fabric/identities/blockClient/msp/keystore",
-  "tlsCertPath": "../../fabric/identities/blockClient/msp/tlscacerts/ca.crt",
-  "peerEndpoint": "dns:///localhost:9051",
-  "gatewayPeer": "peer0.bsc.dt4h.com"
-}'
+curl http://localhost:3000/client -H "Content-Type: application/json" -d '{"orgName": "bsc","mspId": "bscMSP","cryptoPath": "../../fabric/identities/blockClient/msp","certPath": "../../fabric/identities/blockClient/msp/signcerts/cert.pem","keyPath": "../../fabric/identities/blockClient/msp/keystore","tlsCertPath": "../../fabric/identities/blockClient/msp/tlscacerts/ca.crt","peerEndpoint": "dns:///localhost:9051","gatewayPeer": "peer0.bsc.dt4h.com"}'
 
 curl  http://localhost:3000/client/invoke -H "Content-Type: application/json" -d '{"channelid": "dt4h", "chaincodeid": "dt4hCC", "function": "LogQuery", "args": ["select metadata from test-dataset"]}'
 
