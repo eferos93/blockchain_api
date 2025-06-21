@@ -15,7 +15,7 @@ func getTestOrgSetup() client.OrgSetup {
 	// Use test keys and certs from the identities folder
 	base := "../../fabric/identities/blockClient/msp"
 	return client.OrgSetup{
-		OrgName:      "bsc",
+		OrgName:      "Bsc",
 		MSPID:        "bscMSP",
 		CryptoPath:   base,
 		CertPath:     filepath.Join(base, "signcerts/cert.pem"),
