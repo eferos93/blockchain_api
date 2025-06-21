@@ -1,24 +1,14 @@
 package client
 
 import (
-	"blockchain-api/keystore"
-	"crypto/sha256"
-	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"path"
 	"sync"
-	"time"
 
 	"github.com/gorilla/sessions"
-	"github.com/hyperledger/fabric-gateway/pkg/client"
-	"github.com/hyperledger/fabric-gateway/pkg/identity"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 // Store the initialized OrgSetups per session token (thread-safe)
@@ -42,36 +32,6 @@ func init() {
 	store = sessions.NewCookieStore(authKey, encKey)
 }
 
-// Helper to compute SHA256 hash of PEM-encoded identity
-func IdentityHashFromPEM(pem string) string {
-	hash := sha256.Sum256([]byte(pem))
-	return hex.EncodeToString(hash[:])
-}
-
-// Initialize the setup for the organization.
-func Initialize(setup OrgSetup) (*OrgSetup, error) {
-	log.Printf("Initializing connection for %s...\n", setup.OrgName)
-	clientConnection := setup.newGrpcConnection()
-	id := setup.newIdentity()
-	sign := setup.newSign()
-
-	gateway, err := client.Connect(
-		id,
-		client.WithSign(sign),
-		client.WithClientConnection(clientConnection),
-		client.WithEvaluateTimeout(5*time.Second),
-		client.WithEndorseTimeout(15*time.Second),
-		client.WithSubmitTimeout(5*time.Second),
-		client.WithCommitStatusTimeout(1*time.Minute),
-	)
-	if err != nil {
-		panic(err)
-	}
-	setup.Gateway = *gateway
-	log.Println("Initialization complete")
-	return &setup, nil
-}
-
 // Initialize the setup for the organization and store in session map.
 func InitializeWithSession(setup OrgSetup, session *sessions.Session, w http.ResponseWriter, r *http.Request) error {
 	orgSetup, err := Initialize(setup)
@@ -86,124 +46,6 @@ func InitializeWithSession(setup OrgSetup, session *sessions.Session, w http.Res
 		Secure:   false, // Set to true if using HTTPS
 	}
 	return session.Save(r, w)
-}
-
-// Get OrgSetup from session map
-func GetOrgSetup(sessionID string) (*OrgSetup, bool) {
-	val, ok := orgSetupSessions.Load(sessionID)
-	if !ok {
-		return nil, false
-	}
-	return val.(*OrgSetup), true
-}
-
-// Remove OrgSetup from session map
-func RemoveOrgSetup(sessionID string) {
-	orgSetupSessions.Delete(sessionID)
-}
-
-// newGrpcConnection creates a gRPC connection to the Gateway server.
-func (setup OrgSetup) newGrpcConnection() *grpc.ClientConn {
-	certificate, err := loadCertificate(setup.TLSCertPath)
-	if err != nil {
-		panic(err)
-	}
-
-	certPool := x509.NewCertPool()
-	certPool.AddCert(certificate)
-	transportCredentials := credentials.NewClientTLSFromCert(certPool, setup.GatewayPeer)
-
-	connection, err := grpc.NewClient(setup.PeerEndpoint, grpc.WithTransportCredentials(transportCredentials))
-	if err != nil {
-		panic(fmt.Errorf("failed to create gRPC connection: %w", err))
-	}
-
-	return connection
-}
-
-// newIdentity creates a client identity for this Gateway connection using an X.509 certificate.
-func (setup OrgSetup) newIdentity() *identity.X509Identity {
-	var certificate *x509.Certificate
-	var err error
-
-	if setup.UseKeystore && setup.EnrollmentID != "" {
-		// Load from keystore
-		certPath, _, err := keystore.GetKeyForFabricClient(setup.EnrollmentID, setup.MSPID)
-		if err != nil {
-			log.Printf("Failed to get key from keystore, falling back to file: %v", err)
-			certificate, err = loadCertificate(setup.CertPath)
-		} else {
-			certificate, err = loadCertificate(certPath)
-		}
-	} else {
-		// Load from file system
-		certificate, err = loadCertificate(setup.CertPath)
-	}
-
-	if err != nil {
-		panic(err)
-	}
-
-	id, err := identity.NewX509Identity(setup.MSPID, certificate)
-	if err != nil {
-		panic(err)
-	}
-
-	return id
-}
-
-// newSign creates a function that generates a digital signature from a message digest using a private key.
-func (setup OrgSetup) newSign() identity.Sign {
-	var privateKeyPEM []byte
-	var err error
-
-	if setup.UseKeystore && setup.EnrollmentID != "" {
-		// Load from keystore
-		_, keyDir, err := keystore.GetKeyForFabricClient(setup.EnrollmentID, setup.MSPID)
-		if err != nil {
-			log.Printf("Failed to get key from keystore, falling back to file: %v", err)
-			// Fall back to file system
-			files, err := os.ReadDir(setup.KeyPath)
-			if err != nil {
-				panic(fmt.Errorf("failed to read private key directory: %w", err))
-			}
-			privateKeyPEM, err = os.ReadFile(path.Join(setup.KeyPath, files[0].Name()))
-		} else {
-			// Load from keystore directory
-			files, err := os.ReadDir(keyDir)
-			if err != nil {
-				panic(fmt.Errorf("failed to read keystore private key directory: %w", err))
-			}
-			privateKeyPEM, err = os.ReadFile(path.Join(keyDir, files[0].Name()))
-		}
-	} else {
-		// Load from file system
-		files, err := os.ReadDir(setup.KeyPath)
-		if err != nil {
-			panic(fmt.Errorf("failed to read private key directory: %w", err))
-		}
-		privateKeyPEM, err = os.ReadFile(path.Join(setup.KeyPath, files[0].Name()))
-	}
-
-	privateKey, err := identity.PrivateKeyFromPEM(privateKeyPEM)
-	if err != nil {
-		panic(err)
-	}
-
-	sign, err := identity.NewPrivateKeySign(privateKey)
-	if err != nil {
-		panic(err)
-	}
-
-	return sign
-}
-
-func loadCertificate(filename string) (*x509.Certificate, error) {
-	certificatePEM, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read certificate file: %w", err)
-	}
-	return identity.CertificateFromPEM(certificatePEM)
 }
 
 // Handler for /client/invoke
