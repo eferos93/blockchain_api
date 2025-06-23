@@ -13,14 +13,14 @@ import (
 
 func getTestOrgSetup() client.OrgSetup {
 	// Use test keys and certs from the identities folder
-	base := "../../fabric/identities/blockClient/msp"
+	base := filepath.Join("..", "..", "fabric", "identities", "blockClient", "msp")
 	return client.OrgSetup{
 		OrgName:      "Bsc",
 		MSPID:        "bscMSP",
 		CryptoPath:   base,
-		CertPath:     filepath.Join(base, "signcerts/cert.pem"),
+		CertPath:     filepath.Join(base, "signcerts", "cert.pem"),
 		KeyPath:      filepath.Join(base, "keystore"),
-		TLSCertPath:  filepath.Join(base, "tlscacerts/ca.crt"),
+		TLSCertPath:  filepath.Join(base, "tlscacerts", "ca.crt"),
 		PeerEndpoint: "dns:///localhost:9051",
 		GatewayPeer:  "peer0.bsc.dt4h.com",
 	}
