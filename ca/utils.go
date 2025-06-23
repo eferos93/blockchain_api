@@ -10,12 +10,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/asn1"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
-	"math/big"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 )
 
@@ -123,56 +123,58 @@ func generateCSR(csrInfo CSRInfo) (string, *ecdsa.PrivateKey, error) {
 
 // createFabricCAAuthToken creates the proper authorization token for Fabric CA REST API
 // Format: <base64_encoded_certificate>.<base64_encoded_signature>
-func createFabricCAAuthToken(method, urlPath, body string, certificate, privateKeyPEM string) (string, error) {
+func createFabricCAAuthToken(method, urlPath, body string, certificatePEM, privateKeyPEM []byte) (string, error) {
 	// Parse the certificate
-	certBlock, _ := pem.Decode([]byte(certificate))
-	if certBlock == nil {
-		return "", fmt.Errorf("failed to decode certificate PEM")
-	}
 
 	// Parse the private key
-	keyBlock, _ := pem.Decode([]byte(privateKeyPEM))
+	keyBlock, _ := pem.Decode(privateKeyPEM)
 	if keyBlock == nil {
 		return "", fmt.Errorf("failed to decode private key PEM")
 	}
 
-	privateKey, err := x509.ParseECPrivateKey(keyBlock.Bytes)
+	privateKey, err := x509.ParsePKCS8PrivateKey(keyBlock.Bytes)
 	if err != nil {
 		return "", fmt.Errorf("failed to parse private key: %v", err)
 	}
 
 	// Create the message to sign: method + urlPath + body + certificate
-	message := method + urlPath + body + base64.StdEncoding.EncodeToString(certBlock.Bytes)
-
+	// message := method + urlPath + body + base64.StdEncoding.EncodeToString(certificatePEM)
+	message := method + urlPath + body + string(certificatePEM)
 	// Create hash of the message
 	hash := sha256.Sum256([]byte(message))
 
 	// Sign the hash
-	r, s, err := ecdsa.Sign(rand.Reader, privateKey, hash[:])
+	signature, err := ecdsa.SignASN1(rand.Reader, privateKey.(*ecdsa.PrivateKey), hash[:])
 	if err != nil {
 		return "", fmt.Errorf("failed to sign message: %v", err)
 	}
+	// Old signing method using ECDSA
+	// r, s, err := ecdsa.Sign(rand.Reader, privateKey.(*ecdsa.PrivateKey), hash[:])
 
-	// Encode signature as ASN.1 DER
-	signature, err := asn1.Marshal(struct{ R, S *big.Int }{r, s})
-	if err != nil {
-		return "", fmt.Errorf("failed to encode signature: %v", err)
-	}
+	// if err != nil {
+	// 	return "", fmt.Errorf("failed to sign message: %v", err)
+	// }
+
+	// // Encode signature as ASN.1 DER
+	// signature, err := asn1.Marshal(struct{ R, S *big.Int }{r, s})
+	// if err != nil {
+	// 	return "", fmt.Errorf("failed to encode signature: %v", err)
+	// }
 
 	// Create the authorization token
-	certB64 := base64.StdEncoding.EncodeToString(certBlock.Bytes)
+	certB64 := base64.StdEncoding.EncodeToString(certificatePEM)
 	sigB64 := base64.StdEncoding.EncodeToString(signature)
 
 	return certB64 + "." + sigB64, nil
 }
 
 // getAdminCredentialsFromKeystore retrieves admin certificate and private key from keystore
-func getAdminCredentialsFromKeystore(enrollmentID, mspID string) (string, string, error) {
+func getAdminCredentialsFromKeystore(enrollmentID, mspID string) ([]byte, []byte, error) {
 	// Use the global keystore instance if available
 	if keystore.GlobalKeystore != nil {
 		entry, err := keystore.GlobalKeystore.RetrieveKey(enrollmentID, mspID)
 		if err != nil {
-			return "", "", fmt.Errorf("failed to retrieve admin credentials from global keystore: %v", err)
+			return nil, nil, fmt.Errorf("failed to retrieve admin credentials from global keystore: %v", err)
 		}
 		return entry.Certificate, entry.PrivateKey, nil
 	}
@@ -180,15 +182,32 @@ func getAdminCredentialsFromKeystore(enrollmentID, mspID string) (string, string
 	// Fallback to local BadgerDB keystore for backward compatibility
 	keystoreInstance, err := keystore.NewBadgerKeystore("./badger-keystore", "defaultPassword")
 	if err != nil {
-		return "", "", fmt.Errorf("failed to initialize BadgerDB keystore: %v", err)
+		return nil, nil, fmt.Errorf("failed to initialize BadgerDB keystore: %v", err)
 	}
 	defer keystoreInstance.Close()
 
 	// Retrieve the admin credentials
 	entry, err := keystoreInstance.RetrieveKey(enrollmentID, mspID)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to retrieve admin credentials from keystore: %v", err)
+		return nil, nil, fmt.Errorf("failed to retrieve admin credentials from keystore: %v", err)
 	}
 
 	return entry.Certificate, entry.PrivateKey, nil
+}
+
+func loadAdminCredentialsForTest() ([]byte, []byte, error) {
+	// For testing purposes, we can hardcode the admin credentials
+	// In production, this should be retrieved from a secure keystore
+	basePath := filepath.Join("../", "identities", "bscRegistrar", "msp")
+	certPath := filepath.Join(basePath, "signcerts", "cert.pem")
+	keyPath := filepath.Join(basePath, "keystore", "key.pem")
+	certPEM, err := os.ReadFile(certPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read admin certificate: %w", err)
+	}
+	keyPEM, err := os.ReadFile(keyPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read admin private key: %w", err)
+	}
+	return certPEM, keyPEM, nil
 }

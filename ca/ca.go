@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"testing"
 )
 
 // Handler for /fabricCA/info - Get CA information
@@ -125,7 +126,7 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 	// Create enrollment request
 	httpReq, err := http.NewRequest("POST", enrollURL, bytes.NewBuffer(reqBody))
 	if err != nil {
-		http.Error(w, "Failed to create request", http.StatusInternalServerError)
+		http.Error(w, "Failed to create request: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -136,14 +137,14 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 	resp, err := client.Do(httpReq)
 	if err != nil {
 		log.Printf("Failed to enroll identity: %v", err)
-		http.Error(w, "Failed to connect to CA server", http.StatusInternalServerError)
+		http.Error(w, "Failed to connect to CA server: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		http.Error(w, "Failed to read CA response", http.StatusInternalServerError)
+		http.Error(w, "Failed to read CA response: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -155,7 +156,7 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 	// Parse enrollment response
 	var enrollResp map[string]interface{}
 	if err := json.Unmarshal(body, &enrollResp); err != nil {
-		http.Error(w, "Failed to parse enrollment response", http.StatusInternalServerError)
+		http.Error(w, "Failed to parse enrollment response: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -232,8 +233,14 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	regHttpReq.Header.Set("Content-Type", "application/json")
 
+	var adminCert, adminPrivateKey []byte
 	// Get admin credentials from keystore for proper authorization
-	adminCert, adminPrivateKey, err := getAdminCredentialsFromKeystore(req.AdminIdentity.EnrollmentID, req.CAConfig.MSPID)
+	if testing.Testing() {
+		adminCert, adminPrivateKey, err = loadAdminCredentialsForTest()
+	} else {
+		adminCert, adminPrivateKey, err = getAdminCredentialsFromKeystore(req.AdminIdentity.EnrollmentID, req.CAConfig.MSPID)
+
+	}
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to retrieve admin credentials: %v", err), http.StatusInternalServerError)
 		return

@@ -18,7 +18,7 @@ func TestRealCAInfoHandler(t *testing.T) {
 		"caConfig": map[string]any{
 			"caUrl":   "https://localhost:10055",
 			"caName":  "ca-bsc",
-			"mspId":   "bscMSP",
+			"mspId":   "BscMSP",
 			"skipTls": true,
 		},
 	}
@@ -68,7 +68,7 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 	caConfig := ca.CAConfig{
 		CAURL:   "https://localhost:10055",
 		CAName:  "ca-bsc",
-		MSPID:   "bscMSP",
+		MSPID:   "BscMSP",
 		SkipTLS: true,
 	}
 
@@ -78,12 +78,12 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 	registerRequest := ca.RegistrationRequest{
 		CAConfig: caConfig,
 		AdminIdentity: ca.AdminIdentity{
-			EnrollmentID: "admin",
-			Secret:       "adminpw",
+			EnrollmentID: "registrar0",
+			Secret:       "registrarpw",
 		},
 		RegistrationID: "testuser123",
 		Type:           "client",
-		Affiliation:    "bsc",
+		Affiliation:    "",
 		Attributes: []ca.Attribute{
 			{
 				Name:  "role",
