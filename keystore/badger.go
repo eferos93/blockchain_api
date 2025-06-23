@@ -37,7 +37,7 @@ func NewBadgerKeystore(dbPath string, masterPassword string) (*BadgerKeystore, e
 }
 
 // StoreKey stores an encrypted private key in BadgerDB
-func (b *BadgerKeystore) StoreKey(enrollmentID, mspID, privateKeyPEM, certificatePEM string) error {
+func (b *BadgerKeystore) StoreKey(enrollmentID, mspID string, privateKeyPEM, certificatePEM []byte) error {
 	entry := KeystoreEntry{
 		EnrollmentID: enrollmentID,
 		MSPID:        mspID,

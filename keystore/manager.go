@@ -48,19 +48,19 @@ func InitializeKeystore(keystoreType, config, masterPassword string) error {
 }
 
 // StoreEnrollmentResult stores the results from CA enrollment
-func StoreEnrollmentResult(enrollmentID, mspID string, enrollmentResult map[string]interface{}) error {
+func StoreEnrollmentResult(enrollmentID, mspID string, enrollmentResult map[string]any) error {
 	if GlobalKeystore == nil {
 		return fmt.Errorf("keystore not initialized")
 	}
 
 	// Extract certificate and private key from enrollment result
-	cert, ok := enrollmentResult["Cert"].(string)
+	cert, ok := enrollmentResult["Cert"].([]byte)
 	if !ok {
 		return fmt.Errorf("certificate not found in enrollment result")
 	}
 
 	// Some CA servers return the private key, others require it to be generated client-side
-	privateKey, hasPrivateKey := enrollmentResult["PrivateKey"].(string)
+	privateKey, hasPrivateKey := enrollmentResult["PrivateKey"].([]byte)
 	if !hasPrivateKey {
 		return fmt.Errorf("private key not found in enrollment result")
 	}
@@ -110,8 +110,8 @@ func CreateMSPStructure(enrollmentID, mspID, outputPath string) error {
 }
 
 // ValidateCertificate validates that a certificate is properly formatted and not expired
-func ValidateCertificate(certPEM string) error {
-	block, _ := pem.Decode([]byte(certPEM))
+func ValidateCertificate(certPEM []byte) error {
+	block, _ := pem.Decode(certPEM)
 	if block == nil {
 		return fmt.Errorf("invalid PEM certificate")
 	}

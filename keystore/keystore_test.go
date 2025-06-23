@@ -2,6 +2,7 @@ package keystore_test
 
 import (
 	"blockchain-api/keystore"
+	"bytes"
 	"testing"
 )
 
@@ -43,7 +44,7 @@ func TestBadgerDBKeystore(t *testing.T) {
 	enrollmentID := "testuser"
 	mspID := "Org1MSP"
 
-	err = ks.StoreKey(enrollmentID, mspID, testPrivateKey, testCertificate)
+	err = ks.StoreKey(enrollmentID, mspID, []byte(testPrivateKey), []byte(testCertificate))
 	if err != nil {
 		t.Fatalf("Failed to store key: %v", err)
 	}
@@ -61,10 +62,10 @@ func TestBadgerDBKeystore(t *testing.T) {
 	if entry.MSPID != mspID {
 		t.Errorf("Expected MSP ID %s, got %s", mspID, entry.MSPID)
 	}
-	if entry.PrivateKey != testPrivateKey {
+	if !bytes.Equal(entry.PrivateKey, []byte(testPrivateKey)) {
 		t.Errorf("Private key mismatch")
 	}
-	if entry.Certificate != testCertificate {
+	if !bytes.Equal(entry.Certificate, []byte(testCertificate)) {
 		t.Errorf("Certificate mismatch")
 	}
 

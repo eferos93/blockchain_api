@@ -8,18 +8,19 @@ import (
 )
 
 // KeystoreEntry represents a stored private key with metadata
+// TODO: refactor to use []byte instead of string certificates and keys
 type KeystoreEntry struct {
 	EnrollmentID string     `json:"enrollmentId"`
 	MSPID        string     `json:"mspId"`
-	PrivateKey   string     `json:"privateKey"`  // Encrypted private key PEM
-	Certificate  string     `json:"certificate"` // Public certificate PEM
+	PrivateKey   []byte     `json:"privateKey"`  // Encrypted private key PEM
+	Certificate  []byte     `json:"certificate"` // Public certificate PEM
 	CreatedAt    time.Time  `json:"createdAt"`
 	ExpiresAt    *time.Time `json:"expiresAt,omitempty"`
 }
 
 // KeystoreManager interface for different storage backends
 type KeystoreManager interface {
-	StoreKey(enrollmentID, mspID, privateKeyPEM, certificatePEM string) error
+	StoreKey(enrollmentID, mspID string, privateKeyPEM, certificatePEM []byte) error
 	RetrieveKey(enrollmentID, mspID string) (*KeystoreEntry, error)
 	DeleteKey(enrollmentID, mspID string) error
 }
@@ -48,8 +49,8 @@ type RemoteBadgerConfig struct {
 type APIRequest struct {
 	EnrollmentID   string `json:"enrollmentId,omitempty"`
 	MSPID          string `json:"mspId,omitempty"`
-	PrivateKeyPEM  string `json:"privateKeyPem,omitempty"`
-	CertificatePEM string `json:"certificatePem,omitempty"`
+	PrivateKeyPEM  []byte `json:"privateKeyPem,omitempty"`
+	CertificatePEM []byte `json:"certificatePem,omitempty"`
 }
 
 // APIResponse represents the response from remote BadgerDB API
