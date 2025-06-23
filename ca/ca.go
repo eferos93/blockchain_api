@@ -86,7 +86,7 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 	client := createHTTPClient(req.CAConfig)
 
 	// Prepare enrollment request for CA
-	enrollReq := map[string]interface{}{
+	enrollReq := map[string]any{
 		"id":     req.EnrollmentID,
 		"secret": req.Secret,
 	}
@@ -221,9 +221,9 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Make registration request with admin certificate authorization
 	registerURL := fmt.Sprintf("%s/api/v1/register", req.CAConfig.CAURL)
-	// if req.CAConfig.CAName != "" {
-	// 	registerURL += "?ca=" + req.CAConfig.CAName
-	// }
+	if req.CAConfig.CAName != "" {
+		registerURL += "?ca=" + req.CAConfig.CAName
+	}
 
 	// Create registration request with admin certificate
 	regHttpReq, err := http.NewRequest("POST", registerURL, bytes.NewBuffer(regReqBody))
