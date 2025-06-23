@@ -83,7 +83,7 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 		},
 		RegistrationID: "testuser123",
 		Type:           "client",
-		Affiliation:    "",
+		Affiliation:    "bsc",
 		Attributes: []ca.Attribute{
 			{
 				Name:  "role",

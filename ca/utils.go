@@ -10,9 +10,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"math/big"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -144,22 +146,22 @@ func createFabricCAAuthToken(method, urlPath, body string, certificatePEM, priva
 	hash := sha256.Sum256([]byte(message))
 
 	// Sign the hash
-	signature, err := ecdsa.SignASN1(rand.Reader, privateKey.(*ecdsa.PrivateKey), hash[:])
-	if err != nil {
-		return "", fmt.Errorf("failed to sign message: %v", err)
-	}
-	// Old signing method using ECDSA
-	// r, s, err := ecdsa.Sign(rand.Reader, privateKey.(*ecdsa.PrivateKey), hash[:])
-
+	// signature, err := ecdsa.SignASN1(rand.Reader, privateKey.(*ecdsa.PrivateKey), hash[:])
 	// if err != nil {
 	// 	return "", fmt.Errorf("failed to sign message: %v", err)
 	// }
+	// Old signing method using ECDSA
+	r, s, err := ecdsa.Sign(rand.Reader, privateKey.(*ecdsa.PrivateKey), hash[:])
 
-	// // Encode signature as ASN.1 DER
-	// signature, err := asn1.Marshal(struct{ R, S *big.Int }{r, s})
-	// if err != nil {
-	// 	return "", fmt.Errorf("failed to encode signature: %v", err)
-	// }
+	if err != nil {
+		return "", fmt.Errorf("failed to sign message: %v", err)
+	}
+
+	// Encode signature as ASN.1 DER
+	signature, err := asn1.Marshal(struct{ R, S *big.Int }{r, s})
+	if err != nil {
+		return "", fmt.Errorf("failed to encode signature: %v", err)
+	}
 
 	// Create the authorization token
 	certB64 := base64.StdEncoding.EncodeToString(certificatePEM)
@@ -198,7 +200,7 @@ func getAdminCredentialsFromKeystore(enrollmentID, mspID string) ([]byte, []byte
 func loadAdminCredentialsForTest() ([]byte, []byte, error) {
 	// For testing purposes, we can hardcode the admin credentials
 	// In production, this should be retrieved from a secure keystore
-	basePath := filepath.Join("../", "identities", "bscRegistrar", "msp")
+	basePath := filepath.Join("..", "identities", "bscRegistrar", "msp")
 	certPath := filepath.Join(basePath, "signcerts", "cert.pem")
 	keyPath := filepath.Join(basePath, "keystore", "key.pem")
 	certPEM, err := os.ReadFile(certPath)
