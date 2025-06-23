@@ -190,7 +190,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate required fields
-	if req.RegistrationID == "" || req.AdminIdentity.EnrollmentID == "" || req.AdminIdentity.Secret == "" {
+	if req.UserRegistrationID == "" || req.AdminIdentity.EnrollmentID == "" || req.AdminIdentity.Secret == "" {
 		http.Error(w, "registrationId and admin credentials are required", http.StatusBadRequest)
 		return
 	}
@@ -199,13 +199,14 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Prepare registration request
 	regReq := map[string]interface{}{
-		"id":          req.RegistrationID,
+		"id":          req.UserRegistrationID,
 		"type":        req.Type,
 		"affiliation": req.Affiliation,
+		"caname":      req.CAConfig.CAName,
 	}
 
-	if req.Secret != "" {
-		regReq["secret"] = req.Secret
+	if req.UserSecret != "" {
+		regReq["secret"] = req.UserSecret
 	}
 
 	if len(req.Attributes) > 0 {
@@ -220,9 +221,9 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Make registration request with admin certificate authorization
 	registerURL := fmt.Sprintf("%s/api/v1/register", req.CAConfig.CAURL)
-	if req.CAConfig.CAName != "" {
-		registerURL += "?ca=" + req.CAConfig.CAName
-	}
+	// if req.CAConfig.CAName != "" {
+	// 	registerURL += "?ca=" + req.CAConfig.CAName
+	// }
 
 	// Create registration request with admin certificate
 	regHttpReq, err := http.NewRequest("POST", registerURL, bytes.NewBuffer(regReqBody))

@@ -24,7 +24,7 @@ func TestRealCAInfoHandler(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(requestBody)
-	req := httptest.NewRequest("POST", "/fabricCA/info", bytes.NewBuffer(body))
+	req := httptest.NewRequest("GET", "/fabricCA/info", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
@@ -35,13 +35,12 @@ func TestRealCAInfoHandler(t *testing.T) {
 	t.Logf("CA Info Response Body: %s", recorder.Body.String())
 
 	if recorder.Code == http.StatusInternalServerError {
-		t.Logf("CA server might not be running at localhost:10055")
-		t.Skip("Skipping real CA test - server not available")
+		t.Fatalf("CA server might not be running at localhost:10055; HTTPCode: %d, Error: %s", recorder.Code, recorder.Body.String())
 		return
 	}
 
 	if recorder.Code != http.StatusOK {
-		t.Errorf("Expected status %d, got %d", http.StatusOK, recorder.Code)
+		t.Fatalf("Expected status %d, got %d. Error: %s", http.StatusOK, recorder.Code, recorder.Body.String())
 		return
 	}
 
@@ -81,9 +80,9 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 			EnrollmentID: "registrar0",
 			Secret:       "registrarpw",
 		},
-		RegistrationID: "testuser123",
-		Type:           "client",
-		Affiliation:    "bsc",
+		UserRegistrationID: "testuser123",
+		Type:               "client",
+		Affiliation:        "bsc",
 		Attributes: []ca.Attribute{
 			{
 				Name:  "role",
@@ -104,14 +103,14 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 	t.Logf("Register Response Body: %s", regRecorder.Body.String())
 
 	if regRecorder.Code == http.StatusInternalServerError {
-		t.Logf("CA server might not be running at localhost:10055")
-		t.Skip("Skipping real CA test - server not available")
+		t.Fatalf("CA server might not be running at localhost:10055; Error: %s", regRecorder.Body.String())
+		// t.Logf("CA server might not be running at localhost:10055")
+		// t.Skip("Skipping real CA test - server not available")
 		return
 	}
 
 	if regRecorder.Code == http.StatusUnauthorized {
-		t.Logf("Admin authentication failed - check admin credentials")
-		t.Skip("Skipping test - admin auth failed")
+		t.Fatalf("Admin authentication failed; Error: %s", regRecorder.Body.String())
 		return
 	}
 
