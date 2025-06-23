@@ -7,7 +7,7 @@ mkdir -p ./identities
 echo "Copying identities from ../fabric/application-go/identities to ./identities..."
 # Copy the identities folder
 pwd
-sudo cp -r ../fabric/application-go/identities/* ./identities/
+sudo cp -r ../fabric/identities/* ./identities/
 
 echo "Identities copied. Running tests..."
 
