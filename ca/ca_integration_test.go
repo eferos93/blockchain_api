@@ -1,7 +1,7 @@
-package ca_test
+package caApi_test
 
 import (
-	"blockchain-api/ca"
+	"blockchain-api/caApi"
 	"bytes"
 	"encoding/json"
 	"net/http"
@@ -28,7 +28,7 @@ func TestRealCAInfoHandler(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
-	ca.InfoHandler(recorder, req)
+	caApi.InfoHandler(recorder, req)
 
 	// Check response
 	t.Logf("CA Info Response Code: %d", recorder.Code)
@@ -64,7 +64,7 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 	// Combined test for register and enroll flow
 	// This test follows the proper sequence: register -> enroll
 
-	caConfig := ca.CAConfig{
+	caConfig := caApi.CAConfig{
 		CAURL:   "https://localhost:10055",
 		CAName:  "ca-bsc",
 		MSPID:   "BscMSP",
@@ -74,16 +74,16 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 	// Step 1: Register a new user
 	t.Log("=== Step 1: Registering new user ===")
 
-	registerRequest := ca.RegistrationRequest{
+	registerRequest := caApi.RegistrationRequest{
 		CAConfig: caConfig,
-		AdminIdentity: ca.AdminIdentity{
+		AdminIdentity: caApi.AdminIdentity{
 			EnrollmentID: "registrar0",
 			Secret:       "registrarpw",
 		},
 		UserRegistrationID: "testuser123",
 		Type:               "client",
 		Affiliation:        "bsc",
-		Attributes: []ca.Attribute{
+		Attributes: []caApi.Attribute{
 			{
 				Name:  "role",
 				Value: "client",
@@ -96,7 +96,7 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 	regReq.Header.Set("Content-Type", "application/json")
 
 	regRecorder := httptest.NewRecorder()
-	ca.RegisterHandler(regRecorder, regReq)
+	caApi.RegisterHandler(regRecorder, regReq)
 
 	// Check registration response
 	t.Logf("Register Response Code: %d", regRecorder.Code)
@@ -143,13 +143,13 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 	// Step 2: Enroll the registered user
 	t.Log("=== Step 2: Enrolling the registered user ===")
 
-	enrollRequest := ca.EnrollmentRequest{
+	enrollRequest := caApi.EnrollmentRequest{
 		CAConfig:     caConfig,
 		EnrollmentID: "testuser123",
 		Secret:       userSecret,
-		CSRInfo: ca.CSRInfo{
+		CSRInfo: caApi.CSRInfo{
 			CN: "testuser123",
-			Names: []ca.Name{
+			Names: []caApi.Name{
 				{
 					C:  "US",
 					ST: "California",
@@ -166,7 +166,7 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 	enrollReq.Header.Set("Content-Type", "application/json")
 
 	enrollRecorder := httptest.NewRecorder()
-	ca.EnrollHandler(enrollRecorder, enrollReq)
+	caApi.EnrollHandler(enrollRecorder, enrollReq)
 
 	// Check enrollment response
 	t.Logf("Enroll Response Code: %d", enrollRecorder.Code)

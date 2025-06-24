@@ -1,7 +1,7 @@
-package ca_test
+package caApi_test
 
 import (
-	"blockchain-api/ca"
+	"blockchain-api/caApi"
 	"bytes"
 	"encoding/json"
 	"net/http"
@@ -13,9 +13,9 @@ func TestInfoHandler(t *testing.T) {
 	// Create a mock CA server
 	mockCA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/cainfo" {
-			response := ca.CAInfoResponse{
+			response := caApi.CAInfoResponse{
 				Success: true,
-				Result: ca.CAInfo{
+				Result: caApi.CAInfo{
 					CAName:  "ca.example.com",
 					Version: "1.5.0",
 				},
@@ -43,7 +43,7 @@ func TestInfoHandler(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
-	ca.InfoHandler(recorder, req)
+	caApi.InfoHandler(recorder, req)
 
 	// Check response
 	if recorder.Code != http.StatusOK {
@@ -80,8 +80,8 @@ func TestEnrollHandler(t *testing.T) {
 	defer mockCA.Close()
 
 	// Test request
-	requestBody := ca.EnrollmentRequest{
-		CAConfig: ca.CAConfig{
+	requestBody := caApi.EnrollmentRequest{
+		CAConfig: caApi.CAConfig{
 			CAURL:   mockCA.URL,
 			CAName:  "ca.example.com",
 			MSPID:   "Org1MSP",
@@ -89,7 +89,7 @@ func TestEnrollHandler(t *testing.T) {
 		},
 		EnrollmentID: "testuser",
 		Secret:       "testpw",
-		CSRInfo: ca.CSRInfo{
+		CSRInfo: caApi.CSRInfo{
 			CN: "testuser",
 		},
 	}
@@ -99,7 +99,7 @@ func TestEnrollHandler(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
-	ca.EnrollHandler(recorder, req)
+	caApi.EnrollHandler(recorder, req)
 
 	// Check response
 	if recorder.Code != http.StatusOK {
@@ -151,14 +151,14 @@ func TestRegisterHandler(t *testing.T) {
 	defer mockCA.Close()
 
 	// Test request
-	requestBody := ca.RegistrationRequest{
-		CAConfig: ca.CAConfig{
+	requestBody := caApi.RegistrationRequest{
+		CAConfig: caApi.CAConfig{
 			CAURL:   mockCA.URL,
 			CAName:  "ca.example.com",
 			MSPID:   "Org1MSP",
 			SkipTLS: true,
 		},
-		AdminIdentity: ca.AdminIdentity{
+		AdminIdentity: caApi.AdminIdentity{
 			EnrollmentID: "admin",
 			Secret:       "adminpw",
 		},
@@ -172,7 +172,7 @@ func TestRegisterHandler(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
-	ca.RegisterHandler(recorder, req)
+	caApi.RegisterHandler(recorder, req)
 
 	// Check response
 	if recorder.Code != http.StatusOK {
@@ -199,8 +199,8 @@ func TestRegisterHandler(t *testing.T) {
 
 func TestEnrollHandler_MissingFields(t *testing.T) {
 	// Test with missing enrollment ID
-	requestBody := ca.EnrollmentRequest{
-		CAConfig: ca.CAConfig{
+	requestBody := caApi.EnrollmentRequest{
+		CAConfig: caApi.CAConfig{
 			CAURL: "http://localhost:7054",
 		},
 		Secret: "testpw",
@@ -211,7 +211,7 @@ func TestEnrollHandler_MissingFields(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
-	ca.EnrollHandler(recorder, req)
+	caApi.EnrollHandler(recorder, req)
 
 	if recorder.Code != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, recorder.Code)
@@ -220,8 +220,8 @@ func TestEnrollHandler_MissingFields(t *testing.T) {
 
 func TestRegisterHandler_MissingFields(t *testing.T) {
 	// Test with missing admin credentials
-	requestBody := ca.RegistrationRequest{
-		CAConfig: ca.CAConfig{
+	requestBody := caApi.RegistrationRequest{
+		CAConfig: caApi.CAConfig{
 			CAURL: "http://localhost:7054",
 		},
 		UserRegistrationID: "newuser",
@@ -232,7 +232,7 @@ func TestRegisterHandler_MissingFields(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
-	ca.RegisterHandler(recorder, req)
+	caApi.RegisterHandler(recorder, req)
 
 	if recorder.Code != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, recorder.Code)
