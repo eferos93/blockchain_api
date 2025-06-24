@@ -255,7 +255,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create proper Fabric CA authorization token
-	authToken, err := createFabricCAAuthToken("POST", parsedURL.Path, string(regReqBody), adminCert, adminPrivateKey)
+	authToken, err := createFabricCAAuthToken("POST", []byte(parsedURL.Path), regReqBody, adminCert, adminPrivateKey)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create authorization token: %v", err), http.StatusInternalServerError)
 		return

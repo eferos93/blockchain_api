@@ -123,11 +123,47 @@ func generateCSR(csrInfo CSRInfo) (string, *ecdsa.PrivateKey, error) {
 	return string(csrPEM), privateKey, nil
 }
 
+func ecdsaPrivateKeySign(privateKey *ecdsa.PrivateKey, digest []byte) ([]byte, error) {
+	n := privateKey.Params().Params().N
+
+	r, s, err := ecdsa.Sign(rand.Reader, privateKey, digest)
+	if err != nil {
+		return nil, err
+	}
+
+	s = canonicalECDSASignatureSValue(s, n)
+
+	return asn1ECDSASignature(r, s)
+}
+
+func canonicalECDSASignatureSValue(s *big.Int, curveN *big.Int) *big.Int {
+	halfOrder := new(big.Int).Rsh(curveN, 1)
+	if s.Cmp(halfOrder) <= 0 {
+		return s
+	}
+
+	// Set s to N - s so it is in the lower part of signature space, less or equal to half order
+	return new(big.Int).Sub(curveN, s)
+}
+
+type ecdsaSignature struct {
+	R, S *big.Int
+}
+
+func asn1ECDSASignature(r, s *big.Int) ([]byte, error) {
+	return asn1.Marshal(ecdsaSignature{
+		R: r,
+		S: s,
+	})
+}
+
+func toBase64(data []byte) string {
+	return base64.StdEncoding.EncodeToString(data)
+}
+
 // createFabricCAAuthToken creates the proper authorization token for Fabric CA REST API
 // Format: <base64_encoded_certificate>.<base64_encoded_signature>
-func createFabricCAAuthToken(method, urlPath, body string, certificatePEM, privateKeyPEM []byte) (string, error) {
-	// Parse the certificate
-
+func createFabricCAAuthToken(method string, urlPath, body, certificatePEM, privateKeyPEM []byte) (string, error) {
 	// Parse the private key
 	keyBlock, _ := pem.Decode(privateKeyPEM)
 	if keyBlock == nil {
@@ -140,32 +176,17 @@ func createFabricCAAuthToken(method, urlPath, body string, certificatePEM, priva
 	}
 
 	// Create the message to sign: method + urlPath + body + certificate
-	// message := method + urlPath + body + base64.StdEncoding.EncodeToString(certificatePEM)
-	message := method + urlPath + body + string(certificatePEM)
-	// Create hash of the message
+	message := method + "." + toBase64(urlPath) + "." + toBase64(body) + "." + toBase64(certificatePEM)
 	hash := sha256.Sum256([]byte(message))
 
-	// Sign the hash
-	// signature, err := ecdsa.SignASN1(rand.Reader, privateKey.(*ecdsa.PrivateKey), hash[:])
-	// if err != nil {
-	// 	return "", fmt.Errorf("failed to sign message: %v", err)
-	// }
-	// Old signing method using ECDSA
-	r, s, err := ecdsa.Sign(rand.Reader, privateKey.(*ecdsa.PrivateKey), hash[:])
-
+	signature, err := ecdsaPrivateKeySign(privateKey.(*ecdsa.PrivateKey), hash[:])
 	if err != nil {
 		return "", fmt.Errorf("failed to sign message: %v", err)
 	}
 
-	// Encode signature as ASN.1 DER
-	signature, err := asn1.Marshal(struct{ R, S *big.Int }{r, s})
-	if err != nil {
-		return "", fmt.Errorf("failed to encode signature: %v", err)
-	}
-
 	// Create the authorization token
-	certB64 := base64.StdEncoding.EncodeToString(certificatePEM)
-	sigB64 := base64.StdEncoding.EncodeToString(signature)
+	certB64 := toBase64(certificatePEM)
+	sigB64 := toBase64(signature)
 
 	return certB64 + "." + sigB64, nil
 }
