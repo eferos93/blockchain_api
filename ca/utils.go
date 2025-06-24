@@ -1,4 +1,4 @@
-package ca
+package caApi
 
 import (
 	"blockchain-api/keystore"
@@ -6,8 +6,6 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/sha256"
-	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -15,24 +13,43 @@ import (
 	"encoding/pem"
 	"fmt"
 	"math/big"
-	"net/http"
 	"os"
 	"path/filepath"
-	"time"
+
+	"github.com/hyperledger/fabric-ca/lib"
+	"github.com/hyperledger/fabric-ca/lib/tls"
+	"github.com/hyperledger/fabric-ca/util"
+	"github.com/hyperledger/fabric-lib-go/bccsp"
 )
 
-// Create HTTP client with optional TLS configuration
-func createHTTPClient(config CAConfig) *http.Client {
-	transport := &http.Transport{}
+// createFabricCAClient creates a new Fabric CA client with the given configuration
+func createFabricCAClient(config CAConfig) (*lib.Client, error) {
+	// Create client configuration
+	clientConfig := &lib.ClientConfig{
+		URL:    config.CAURL,
+		CAName: config.CAName,
+		MSPDir: "", // We'll handle credentials separately
+	}
 
+	// Configure TLS if needed
 	if config.SkipTLS {
-		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		clientConfig.TLS = tls.ClientTLSConfig{
+			Enabled: false,
+		}
 	}
 
-	return &http.Client{
-		Transport: transport,
-		Timeout:   30 * time.Second,
+	// Create the client
+	client := &lib.Client{
+		Config: clientConfig,
 	}
+
+	// Initialize the client
+	err := client.Init()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize CA client: %v", err)
+	}
+
+	return client, nil
 }
 
 // GenerateCSR generates a Certificate Signing Request (CSR) for the given common name and hosts
@@ -163,32 +180,13 @@ func toBase64(data []byte) string {
 
 // createFabricCAAuthToken creates the proper authorization token for Fabric CA REST API
 // Format: <base64_encoded_certificate>.<base64_encoded_signature>
-func createFabricCAAuthToken(method string, urlPath, body, certificatePEM, privateKeyPEM []byte) (string, error) {
-	// Parse the private key
-	keyBlock, _ := pem.Decode(privateKeyPEM)
-	if keyBlock == nil {
-		return "", fmt.Errorf("failed to decode private key PEM")
-	}
+func createFabricCAAuthToken(csp bccsp.BCCSP, method, urlPath string, body, certificatePEM, privateKeyPEM []byte) (string, error) {
 
-	privateKey, err := x509.ParsePKCS8PrivateKey(keyBlock.Bytes)
+	token, err := util.GenECDSAToken(csp, certificatePEM, privateKeyPEM, method, urlPath, body)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse private key: %v", err)
+		return "", fmt.Errorf("failed to generate ECDSA token: %v", err)
 	}
-
-	// Create the message to sign: method + urlPath + body + certificate
-	message := method + "." + toBase64(urlPath) + "." + toBase64(body) + "." + toBase64(certificatePEM)
-	hash := sha256.Sum256([]byte(message))
-
-	signature, err := ecdsaPrivateKeySign(privateKey.(*ecdsa.PrivateKey), hash[:])
-	if err != nil {
-		return "", fmt.Errorf("failed to sign message: %v", err)
-	}
-
-	// Create the authorization token
-	certB64 := toBase64(certificatePEM)
-	sigB64 := toBase64(signature)
-
-	return certB64 + "." + sigB64, nil
+	return token, nil
 }
 
 // getAdminCredentialsFromKeystore retrieves admin certificate and private key from keystore
