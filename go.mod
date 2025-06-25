@@ -3,11 +3,13 @@ module blockchain-api
 go 1.24.3
 
 require (
+	github.com/cloudflare/cfssl v1.4.1
 	github.com/dgraph-io/badger/v4 v4.7.0
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/sessions v1.4.0
 	github.com/hyperledger/fabric-ca v1.5.15
 	github.com/hyperledger/fabric-gateway v1.7.1
+	github.com/hyperledger/fabric-lib-go v1.1.2
 	golang.org/x/crypto v0.39.0
 	google.golang.org/grpc v1.73.0
 )
@@ -21,7 +23,6 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.13.0 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/cloudflare/cfssl v1.4.1 // indirect
 	github.com/consensys/bavard v0.1.13 // indirect
 	github.com/consensys/gnark-crypto v0.12.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -42,7 +43,6 @@ require (
 	github.com/grantae/certinfo v0.0.0-20170412194111-59d56a35515b // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hyperledger/fabric-amcl v0.0.0-20230602173724-9e02669dceb2 // indirect
-	github.com/hyperledger/fabric-lib-go v1.1.2 // indirect
 	github.com/hyperledger/fabric-protos-go-apiv2 v0.3.7 // indirect
 	github.com/jinzhu/copier v0.3.5 // indirect
 	github.com/jmhodges/clock v0.0.0-20160418191101-880ee4c33548 // indirect

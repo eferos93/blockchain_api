@@ -1,4 +1,4 @@
-package caApi
+package caapi
 
 import (
 	"blockchain-api/keystore"

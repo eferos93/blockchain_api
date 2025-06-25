@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	caapi "blockchain-api/caApi"
+	"blockchain-api/caapi"
 	clientapi "blockchain-api/client"
 	"blockchain-api/keystore"
 
