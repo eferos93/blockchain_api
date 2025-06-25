@@ -20,6 +20,7 @@ import (
 	"github.com/hyperledger/fabric-ca/lib/tls"
 	"github.com/hyperledger/fabric-ca/util"
 	"github.com/hyperledger/fabric-lib-go/bccsp"
+	"github.com/hyperledger/fabric-lib-go/bccsp/factory"
 )
 
 // createFabricCAClient creates a new Fabric CA client with the given configuration
@@ -180,12 +181,21 @@ func toBase64(data []byte) string {
 
 // createFabricCAAuthToken creates the proper authorization token for Fabric CA REST API
 // Format: <base64_encoded_certificate>.<base64_encoded_signature>
-func createFabricCAAuthToken(csp bccsp.BCCSP, method, urlPath string, body, certificatePEM, privateKeyPEM []byte) (string, error) {
+func createFabricCAAuthToken(clientCsp bccsp.BCCSP, method, urlPath string, body, certificatePEM, privateKeyPEM []byte) (string, error) {
+	// Get BCCSP provider
 
-	token, err := util.GenECDSAToken(csp, certificatePEM, privateKeyPEM, method, urlPath, body)
+	// Convert PEM to BCCSP key
+	bccsKey, err := pemToBCCSPKey(privateKeyPEM)
+	if err != nil {
+		return "", fmt.Errorf("failed to convert PEM to BCCSP key: %v", err)
+	}
+
+	// Use the util.GenECDSAToken function
+	token, err := util.GenECDSAToken(clientCsp, certificatePEM, bccsKey, method, urlPath, body)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate ECDSA token: %v", err)
 	}
+
 	return token, nil
 }
 
@@ -231,4 +241,48 @@ func loadAdminCredentialsForTest() ([]byte, []byte, error) {
 		return nil, nil, fmt.Errorf("failed to read admin private key: %w", err)
 	}
 	return certPEM, keyPEM, nil
+}
+
+func pemToBCCSPKey(privateKeyPEM []byte) (bccsp.Key, error) {
+	// Get the default BCCSP provider
+	csp := factory.GetDefault()
+
+	// Decode the PEM block
+	block, _ := pem.Decode(privateKeyPEM)
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode PEM block")
+	}
+
+	// Parse the private key based on the block type
+	var privateKey any
+	var err error
+	switch block.Type {
+	case "PRIVATE KEY":
+		// PKCS#8 format
+		privateKey, err = x509.ParsePKCS8PrivateKey(block.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse PKCS8 private key: %v", err)
+		}
+	case "EC PRIVATE KEY":
+		// EC format
+		privateKey, err = x509.ParseECPrivateKey(block.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse EC private key: %v", err)
+		}
+	default:
+		return nil, fmt.Errorf("unsupported private key type: %s", block.Type)
+	}
+
+	// Import the key into BCCSP
+	switch pk := privateKey.(type) {
+	case *ecdsa.PrivateKey:
+		// For ECDSA keys
+		bccsKey, err := csp.KeyImport(pk, &bccsp.ECDSAPrivateKeyImportOpts{Temporary: true})
+		if err != nil {
+			return nil, fmt.Errorf("failed to import ECDSA private key: %v", err)
+		}
+		return bccsKey, nil
+	default:
+		return nil, fmt.Errorf("unsupported private key type: %T", pk)
+	}
 }

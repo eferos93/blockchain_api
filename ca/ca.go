@@ -241,13 +241,8 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	httpRegisterReq.Header.Set("Authorization", authToken)
 
-	if err != nil {
-		log.Printf("Failed to create HTTP request: %v", err)
-		http.Error(w, "Failed to create HTTP request", http.StatusInternalServerError)
-		return
-	}
-
-	caClient.SendReq(httpRegisterReq)
+	var secret any
+	caClient.SendReq(httpRegisterReq, secret)
 	if err != nil {
 		log.Printf("Failed to register identity: %v", err)
 		http.Error(w, "Failed to register identity: "+err.Error(), http.StatusInternalServerError)
