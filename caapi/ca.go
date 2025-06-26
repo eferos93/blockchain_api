@@ -1,4 +1,4 @@
-package ca
+package caapi
 
 import (
 	"blockchain-api/keystore"
@@ -74,7 +74,7 @@ func InfoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return success response
-	response := map[string]interface{}{
+	response := map[string]any{
 		"success": true,
 		"message": "CA info retrieved successfully",
 		"caInfo":  caInfoResp.Result,
@@ -102,7 +102,7 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 	client := createHTTPClient(req.CAConfig)
 
 	// Prepare enrollment request for CA
-	enrollReq := map[string]interface{}{
+	enrollReq := map[string]any{
 		"id":     req.EnrollmentID,
 		"secret": req.Secret,
 	}
@@ -170,14 +170,14 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse enrollment response
-	var enrollResp map[string]interface{}
+	var enrollResp map[string]any
 	if err := json.Unmarshal(body, &enrollResp); err != nil {
 		http.Error(w, "Failed to parse enrollment response", http.StatusInternalServerError)
 		return
 	}
 
 	// Store the enrolled identity in keystore if enrollment was successful
-	if result, ok := enrollResp["result"].(map[string]interface{}); ok {
+	if result, ok := enrollResp["result"].(map[string]any); ok {
 		if err := keystore.StoreEnrollmentResult(req.EnrollmentID, req.CAConfig.MSPID, result); err != nil {
 			log.Printf("Warning: Failed to store enrollment result in keystore: %v", err)
 			// Don't fail the request, just log the warning
@@ -187,7 +187,7 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return success response
-	response := map[string]interface{}{
+	response := map[string]any{
 		"success": true,
 		"message": "Identity enrolled successfully",
 		"result":  enrollResp,
@@ -214,7 +214,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	client := createHTTPClient(req.CAConfig)
 
 	// Prepare registration request
-	regReq := map[string]interface{}{
+	regReq := map[string]any{
 		"id":          req.RegistrationID,
 		"type":        req.Type,
 		"affiliation": req.Affiliation,
@@ -310,14 +310,14 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse registration response
-	var registerResp map[string]interface{}
+	var registerResp map[string]any
 	if err := json.Unmarshal(body, &registerResp); err != nil {
 		http.Error(w, "Failed to parse registration response", http.StatusInternalServerError)
 		return
 	}
 
 	// Return success response
-	response := map[string]interface{}{
+	response := map[string]any{
 		"success": true,
 		"message": "Identity registered successfully",
 		"result":  registerResp,

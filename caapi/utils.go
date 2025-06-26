@@ -1,4 +1,4 @@
-package ca
+package caapi
 
 import (
 	"blockchain-api/keystore"
@@ -46,7 +46,7 @@ func getProjectRoot() (string, error) {
 }
 
 // parsePrivateKey parses a private key from PEM format, handling both PKCS#1 and PKCS#8 formats
-func parsePrivateKey(privateKeyPEM string) (interface{}, error) {
+func parsePrivateKey(privateKeyPEM string) (any, error) {
 	block, _ := pem.Decode([]byte(privateKeyPEM))
 	if block == nil {
 		return nil, fmt.Errorf("failed to decode PEM block containing private key")

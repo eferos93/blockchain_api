@@ -1,7 +1,7 @@
-package ca_test
+package caapi_test
 
 import (
-	"blockchain-api/ca"
+	"blockchain-api/caapi"
 	"bytes"
 	"encoding/json"
 	"net/http"
@@ -13,9 +13,9 @@ func TestInfoHandler(t *testing.T) {
 	// Create a mock CA server
 	mockCA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/cainfo" {
-			response := ca.CAInfoResponse{
+			response := caapi.CAInfoResponse{
 				Success: true,
-				Result: ca.CAInfo{
+				Result: caapi.CAInfo{
 					CAName:  "ca.example.com",
 					Version: "1.5.0",
 				},
@@ -29,8 +29,8 @@ func TestInfoHandler(t *testing.T) {
 	defer mockCA.Close()
 
 	// Test request
-	requestBody := map[string]interface{}{
-		"caConfig": map[string]interface{}{
+	requestBody := map[string]any{
+		"caConfig": map[string]any{
 			"caUrl":   mockCA.URL,
 			"caName":  "ca.example.com",
 			"mspId":   "Org1MSP",
@@ -43,14 +43,14 @@ func TestInfoHandler(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
-	ca.InfoHandler(recorder, req)
+	caapi.InfoHandler(recorder, req)
 
 	// Check response
 	if recorder.Code != http.StatusOK {
 		t.Errorf("Expected status %d, got %d", http.StatusOK, recorder.Code)
 	}
 
-	var response map[string]interface{}
+	var response map[string]any
 	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -65,9 +65,9 @@ func TestEnrollHandler(t *testing.T) {
 	mockCA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/api/v1/enroll" && r.Method == "POST" {
 			// Mock enrollment response
-			response := map[string]interface{}{
+			response := map[string]any{
 				"success": true,
-				"result": map[string]interface{}{
+				"result": map[string]any{
 					"Cert": "-----BEGIN CERTIFICATE-----\nMOCK_CERT\n-----END CERTIFICATE-----",
 				},
 			}
@@ -80,8 +80,8 @@ func TestEnrollHandler(t *testing.T) {
 	defer mockCA.Close()
 
 	// Test request
-	requestBody := ca.EnrollmentRequest{
-		CAConfig: ca.CAConfig{
+	requestBody := caapi.EnrollmentRequest{
+		CAConfig: caapi.CAConfig{
 			CAURL:   mockCA.URL,
 			CAName:  "ca.example.com",
 			MSPID:   "Org1MSP",
@@ -89,7 +89,7 @@ func TestEnrollHandler(t *testing.T) {
 		},
 		EnrollmentID: "testuser",
 		Secret:       "testpw",
-		CSRInfo: ca.CSRInfo{
+		CSRInfo: caapi.CSRInfo{
 			CN: "testuser",
 		},
 	}
@@ -99,14 +99,14 @@ func TestEnrollHandler(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
-	ca.EnrollHandler(recorder, req)
+	caapi.EnrollHandler(recorder, req)
 
 	// Check response
 	if recorder.Code != http.StatusOK {
 		t.Errorf("Expected status %d, got %d", http.StatusOK, recorder.Code)
 	}
 
-	var response map[string]interface{}
+	var response map[string]any
 	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -125,9 +125,9 @@ func TestRegisterHandler(t *testing.T) {
 		if r.URL.Path == "/api/v1/enroll" && r.Method == "POST" {
 			enrollCalled = true
 			// Mock admin enrollment response
-			response := map[string]interface{}{
+			response := map[string]any{
 				"success": true,
-				"result": map[string]interface{}{
+				"result": map[string]any{
 					"Cert": "-----BEGIN CERTIFICATE-----\nADMIN_CERT\n-----END CERTIFICATE-----",
 				},
 			}
@@ -136,9 +136,9 @@ func TestRegisterHandler(t *testing.T) {
 		} else if r.URL.Path == "/api/v1/register" && r.Method == "POST" {
 			registerCalled = true
 			// Mock registration response
-			response := map[string]interface{}{
+			response := map[string]any{
 				"success": true,
-				"result": map[string]interface{}{
+				"result": map[string]any{
 					"secret": "generated_secret",
 				},
 			}
@@ -151,14 +151,14 @@ func TestRegisterHandler(t *testing.T) {
 	defer mockCA.Close()
 
 	// Test request
-	requestBody := ca.RegistrationRequest{
-		CAConfig: ca.CAConfig{
+	requestBody := caapi.RegistrationRequest{
+		CAConfig: caapi.CAConfig{
 			CAURL:   mockCA.URL,
 			CAName:  "ca.example.com",
 			MSPID:   "Org1MSP",
 			SkipTLS: true,
 		},
-		AdminIdentity: ca.AdminIdentity{
+		AdminIdentity: caapi.AdminIdentity{
 			EnrollmentID: "admin",
 			Secret:       "adminpw",
 		},
@@ -172,7 +172,7 @@ func TestRegisterHandler(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
-	ca.RegisterHandler(recorder, req)
+	caapi.RegisterHandler(recorder, req)
 
 	// Check response
 	if recorder.Code != http.StatusOK {
@@ -187,7 +187,7 @@ func TestRegisterHandler(t *testing.T) {
 		t.Error("Expected registration to be called")
 	}
 
-	var response map[string]interface{}
+	var response map[string]any
 	if err := json.NewDecoder(recorder.Body).Decode(&response); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -199,8 +199,8 @@ func TestRegisterHandler(t *testing.T) {
 
 func TestEnrollHandler_MissingFields(t *testing.T) {
 	// Test with missing enrollment ID
-	requestBody := ca.EnrollmentRequest{
-		CAConfig: ca.CAConfig{
+	requestBody := caapi.EnrollmentRequest{
+		CAConfig: caapi.CAConfig{
 			CAURL: "http://localhost:7054",
 		},
 		Secret: "testpw",
@@ -211,7 +211,7 @@ func TestEnrollHandler_MissingFields(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
-	ca.EnrollHandler(recorder, req)
+	caapi.EnrollHandler(recorder, req)
 
 	if recorder.Code != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, recorder.Code)
@@ -220,8 +220,8 @@ func TestEnrollHandler_MissingFields(t *testing.T) {
 
 func TestRegisterHandler_MissingFields(t *testing.T) {
 	// Test with missing admin credentials
-	requestBody := ca.RegistrationRequest{
-		CAConfig: ca.CAConfig{
+	requestBody := caapi.RegistrationRequest{
+		CAConfig: caapi.CAConfig{
 			CAURL: "http://localhost:7054",
 		},
 		RegistrationID: "newuser",
@@ -232,7 +232,7 @@ func TestRegisterHandler_MissingFields(t *testing.T) {
 	req.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
-	ca.RegisterHandler(recorder, req)
+	caapi.RegisterHandler(recorder, req)
 
 	if recorder.Code != http.StatusBadRequest {
 		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, recorder.Code)

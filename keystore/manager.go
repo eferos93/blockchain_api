@@ -45,7 +45,7 @@ func InitializeKeystore(keystoreType, config, masterPassword string) error {
 }
 
 // StoreEnrollmentResult stores the results from CA enrollment
-func StoreEnrollmentResult(enrollmentID, mspID string, enrollmentResult map[string]interface{}) error {
+func StoreEnrollmentResult(enrollmentID, mspID string, enrollmentResult map[string]any) error {
 	if GlobalKeystore == nil {
 		return fmt.Errorf("keystore not initialized")
 	}

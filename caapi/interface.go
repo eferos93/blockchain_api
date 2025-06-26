@@ -1,4 +1,4 @@
-package ca
+package caapi
 
 // CAConfig contains configuration for connecting to Fabric CA
 type CAConfig struct {
