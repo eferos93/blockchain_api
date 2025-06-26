@@ -36,7 +36,7 @@ func InfoHandler(w http.ResponseWriter, r *http.Request) {
 	caInfo, err := caClient.GetCAInfo(&caInfoReq)
 	if err != nil {
 		log.Printf("Failed to get CA info: %v", err)
-		http.Error(w, "Failed to connect to CA server", http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Error: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -190,7 +190,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	// caClient.SetIdentity(adminIdentity)
 
 	// Create registration request
-	regReq := &api.RegistrationRequest{
+	registrationReq := &api.RegistrationRequest{
 		Name:        req.UserRegistrationID,
 		Type:        req.Type,
 		Affiliation: req.Affiliation,
@@ -198,13 +198,13 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.UserSecret != "" {
-		regReq.Secret = req.UserSecret
+		registrationReq.Secret = req.UserSecret
 	}
 
 	// Convert attributes to the expected format
 	if len(req.Attributes) > 0 {
 		for _, attr := range req.Attributes {
-			regReq.Attributes = append(regReq.Attributes, api.Attribute{
+			registrationReq.Attributes = append(registrationReq.Attributes, api.Attribute{
 				Name:  attr.Name,
 				Value: attr.Value,
 			})
@@ -213,17 +213,6 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Perform registration using the official client
 	// TODO: seems the fabric-ca-client does not support registration directly, so we use the lib.Client
-
-	// secret, err := caClient.Register(regReq)
-
-	registrationReq := &api.RegistrationRequest{
-		Name:        req.UserRegistrationID,
-		Type:        req.Type,
-		Affiliation: req.Affiliation,
-		CAName:      req.CAConfig.CAName,
-		Secret:      req.UserSecret,
-		Attributes:  regReq.Attributes,
-	}
 
 	registrationReqJSON, err := json.Marshal(registrationReq)
 	if err != nil {
