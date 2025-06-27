@@ -189,8 +189,8 @@ func createFabricCAAuthToken(method, urlPath string, body, certificatePEM, priva
 	return token, nil
 }
 
-// ExtractBscRegistrarCredentials extracts certificate and private key of bscRegistrar identity for test purposes
-func ExtractBscRegistrarCredentials() (string, string, error) {
+// extractBscRegistrarCredentials extracts certificate and private key of bscRegistrar identity for test purposes
+func extractBscRegistrarCredentials() (string, string, error) {
 	// Get project root
 	projectRoot, err := getProjectRoot()
 	if err != nil {

@@ -239,7 +239,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		log.Println("Running in test mode, using mock admin credentials")
 
 		// Extract cert and private key of bscRegistrar identity for test purposes
-		cert, key, err := ExtractBscRegistrarCredentials()
+		cert, key, err := extractBscRegistrarCredentials()
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
