@@ -34,15 +34,8 @@ func TestRealCAInfoHandler(t *testing.T) {
 	t.Logf("CA Info Response Code: %d", recorder.Code)
 	t.Logf("CA Info Response Body: %s", recorder.Body.String())
 
-	if recorder.Code == http.StatusInternalServerError {
-		t.Logf("CA server might not be running at localhost:10055")
-		t.Skip("Skipping real CA test - server not available")
-		return
-	}
-
 	if recorder.Code != http.StatusOK {
-		t.Errorf("Expected status %d, got %d", http.StatusOK, recorder.Code)
-		return
+		t.Fatalf("Internal server error: %s", recorder.Body.String())
 	}
 
 	var response map[string]any
@@ -58,6 +51,8 @@ func TestRealCAInfoHandler(t *testing.T) {
 	if caInfo, ok := response["caInfo"].(map[string]any); ok {
 		t.Logf("CA Name: %v", caInfo["CAName"])
 		t.Logf("CA Version: %v", caInfo["Version"])
+	} else {
+		t.Error("No CA info found in response")
 	}
 }
 
@@ -103,14 +98,8 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 	t.Logf("Register Response Code: %d", regRecorder.Code)
 	t.Logf("Register Response Body: %s", regRecorder.Body.String())
 
-	if regRecorder.Code == http.StatusInternalServerError {
-		t.Fatal("CA server might not be running at localhost:10055")
-		return
-	}
-
-	if regRecorder.Code == http.StatusUnauthorized {
-		t.Fatalf("Admin authentication failed - check admin credentials")
-		return
+	if regRecorder.Code != http.StatusOK {
+		t.Fatalf("Registration failed with code %d: %s", regRecorder.Code, regRecorder.Body.String())
 	}
 
 	var userSecret string
