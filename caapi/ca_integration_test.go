@@ -18,7 +18,7 @@ func TestRealCAInfoHandler(t *testing.T) {
 		"caConfig": map[string]any{
 			"caUrl":   "https://localhost:10055",
 			"caName":  "ca-bsc",
-			"mspId":   "bscMSP",
+			"mspId":   "BscMSP",
 			"skipTls": true,
 		},
 	}
