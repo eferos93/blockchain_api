@@ -8,6 +8,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -15,10 +16,26 @@ import (
 	"encoding/pem"
 	"fmt"
 	"math/big"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
+
+// Create HTTP client with optional TLS configuration
+func createHTTPClient(config CAConfig) *http.Client {
+	transport := &http.Transport{}
+
+	if config.SkipTLS {
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	}
+
+	return &http.Client{
+		Transport: transport,
+		Timeout:   30 * time.Second,
+	}
+}
 
 // getProjectRoot finds the project root directory by looking for go.mod
 func getProjectRoot() (string, error) {

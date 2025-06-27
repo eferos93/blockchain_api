@@ -3,7 +3,6 @@ package caapi
 import (
 	"blockchain-api/keystore"
 	"bytes"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,22 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"testing"
-	"time"
 )
-
-// Create HTTP client with optional TLS configuration
-func createHTTPClient(config CAConfig) *http.Client {
-	transport := &http.Transport{}
-
-	if config.SkipTLS {
-		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	}
-
-	return &http.Client{
-		Transport: transport,
-		Timeout:   30 * time.Second,
-	}
-}
 
 // Handler for /fabricCA/info - Get CA information
 func InfoHandler(w http.ResponseWriter, r *http.Request) {
