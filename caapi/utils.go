@@ -17,7 +17,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/hyperledger/fabric-ca/util"
+	fabricCAutils "github.com/hyperledger/fabric-ca/util"
 	"github.com/hyperledger/fabric-lib-go/bccsp"
 	"github.com/hyperledger/fabric-lib-go/bccsp/factory"
 )
@@ -180,8 +180,8 @@ func createFabricCAAuthToken(method, urlPath string, body, certificatePEM, priva
 		return "", fmt.Errorf("failed to convert PEM to BCCSP key: %v", err)
 	}
 
-	// Use the util.GenECDSAToken function
-	token, err := util.GenECDSAToken(cryptoServiceProvider, certificatePEM, bccsKey, method, urlPath, body)
+	// Use the fabricCAutils.GenECDSAToken function
+	token, err := fabricCAutils.GenECDSAToken(cryptoServiceProvider, certificatePEM, bccsKey, method, urlPath, body)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate ECDSA token: %v", err)
 	}
