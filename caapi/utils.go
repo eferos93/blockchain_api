@@ -159,7 +159,7 @@ func pemToBCCSPKey(privateKeyPEM []byte) (bccsp.Key, bccsp.BCCSP, error) {
 	switch pk := privateKey.(type) {
 	case *ecdsa.PrivateKey:
 		// For ECDSA keys
-		bccsKey, err := cryptoServiceProvider.KeyImport(pk, &bccsp.ECDSAPrivateKeyImportOpts{Temporary: true})
+		bccsKey, err := cryptoServiceProvider.KeyImport(block.Bytes, &bccsp.ECDSAPrivateKeyImportOpts{Temporary: true})
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to import ECDSA private key: %v", err)
 		}
