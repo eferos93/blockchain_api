@@ -134,9 +134,9 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 			CN: "testuser123",
 			Names: []caapi.Name{
 				{
-					C:  "US",
-					ST: "California",
-					L:  "San Francisco",
+					C:  "ES",
+					ST: "Catalunya",
+					L:  "Barcelona",
 					O:  "bsc",
 					OU: "client",
 				},
