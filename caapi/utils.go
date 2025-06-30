@@ -198,15 +198,6 @@ func genECDSAToken(csp bccsp.BCCSP, key bccsp.Key, b64cert, payload string) (str
 		return "", errors.New("BCCSP signature creation failed. Signature must be different than nil")
 	}
 
-	valid, error := csp.Verify(key, digest, ecSignature, nil)
-
-	if !valid {
-		return "", errors.WithMessage(error, "MYCODE BCCSP signature verification failure")
-
-	}
-	if error != nil {
-		return "", errors.WithMessage(error, fmt.Sprintf("MYCODE: Error when verifying BCCSP signature %s", error))
-	}
 	b64sig := B64Encode(ecSignature)
 	token := b64cert + "." + b64sig
 

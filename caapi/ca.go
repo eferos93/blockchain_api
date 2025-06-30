@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"testing"
 )
 
@@ -261,15 +260,8 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		adminPrivateKey = []byte(adminPrivateKeyStr)
 	}
 
-	// Parse URL to get the path for signing
-	parsedURL, err := url.Parse(registerURL)
-	if err != nil {
-		http.Error(w, "Failed to parse registration URL", http.StatusInternalServerError)
-		return
-	}
-
 	// Create proper Fabric CA authorization token
-	authToken, err := createFabricCAAuthToken("POST", parsedURL.Path, regReqBody, adminCert, adminPrivateKey)
+	authToken, err := createFabricCAAuthToken(regHttpReq.Method, regHttpReq.URL.RequestURI(), regReqBody, adminCert, adminPrivateKey)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create authorization token: %v", err), http.StatusInternalServerError)
 		return
