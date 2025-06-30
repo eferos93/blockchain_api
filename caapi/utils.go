@@ -10,6 +10,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"net/http"
@@ -17,15 +18,14 @@ import (
 	"path/filepath"
 	"time"
 
-	fabricCAutils "github.com/hyperledger/fabric-ca/util"
 	"github.com/hyperledger/fabric-lib-go/bccsp"
 	"github.com/hyperledger/fabric-lib-go/bccsp/factory"
+	"github.com/pkg/errors"
 )
 
 // Create HTTP client with optional TLS configuration
 func createHTTPClient(config CAConfig) *http.Client {
 	transport := &http.Transport{}
-
 	if config.SkipTLS {
 		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
@@ -169,6 +169,51 @@ func pemToBCCSPKey(privateKeyPEM []byte) (bccsp.Key, bccsp.BCCSP, error) {
 	}
 }
 
+// B64Encode base64 encodes bytes
+func B64Encode(buf []byte) string {
+	return base64.StdEncoding.EncodeToString(buf)
+}
+
+// GenECDSAToken signs the http body and cert with ECDSA using EC private key
+func GenECDSAToken(csp bccsp.BCCSP, cert []byte, key bccsp.Key, method, uri string, body []byte) (string, error) {
+	b64body := B64Encode(body)
+	b64cert := B64Encode(cert)
+	b64uri := B64Encode([]byte(uri))
+	payload := method + "." + b64uri + "." + b64body + "." + b64cert
+
+	return genECDSAToken(csp, key, b64cert, payload)
+}
+
+func genECDSAToken(csp bccsp.BCCSP, key bccsp.Key, b64cert, payload string) (string, error) {
+	digest, digestError := csp.Hash([]byte(payload), &bccsp.SHAOpts{})
+	if digestError != nil {
+		return "", errors.WithMessage(digestError, fmt.Sprintf("Hash failed on '%s'", payload))
+	}
+
+	ecSignature, err := csp.Sign(key, digest, nil)
+	if err != nil {
+		return "", errors.WithMessage(err, "BCCSP signature generation failure")
+	}
+	if len(ecSignature) == 0 {
+		return "", errors.New("BCCSP signature creation failed. Signature must be different than nil")
+	}
+
+	valid, error := csp.Verify(key, digest, ecSignature, nil)
+
+	if !valid {
+		return "", errors.WithMessage(error, "MYCODE BCCSP signature verification failure")
+
+	}
+	if error != nil {
+		return "", errors.WithMessage(error, fmt.Sprintf("MYCODE: Error when verifying BCCSP signature %s", error))
+	}
+	b64sig := B64Encode(ecSignature)
+	token := b64cert + "." + b64sig
+
+	return token, nil
+
+}
+
 // createFabricCAAuthToken creates the proper authorization token for Fabric CA REST API
 // Format: <base64_encoded_certificate>.<base64_encoded_signature>
 func createFabricCAAuthToken(method, urlPath string, body, certificatePEM, privateKeyPEM []byte) (string, error) {
@@ -181,7 +226,8 @@ func createFabricCAAuthToken(method, urlPath string, body, certificatePEM, priva
 	}
 
 	// Use the fabricCAutils.GenECDSAToken function
-	token, err := fabricCAutils.GenECDSAToken(cryptoServiceProvider, certificatePEM, bccsKey, method, urlPath, body)
+	token, err := GenECDSAToken(cryptoServiceProvider, certificatePEM, bccsKey, method, urlPath, body)
+
 	if err != nil {
 		return "", fmt.Errorf("failed to generate ECDSA token: %v", err)
 	}
