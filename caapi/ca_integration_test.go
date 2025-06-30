@@ -79,7 +79,6 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 		RegistrationID: "testuser123",
 		Secret:         "testuser123pw",
 		Type:           "client",
-		Affiliation:    "bsc",
 	}
 
 	regBody, _ := json.Marshal(registerRequest)
