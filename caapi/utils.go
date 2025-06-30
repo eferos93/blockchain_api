@@ -62,8 +62,8 @@ func getProjectRoot() (string, error) {
 }
 
 // parsePrivateKey parses a private key from PEM format, handling both PKCS#1 and PKCS#8 formats
-func parsePrivateKey(privateKeyPEM string) (any, error) {
-	block, _ := pem.Decode([]byte(privateKeyPEM))
+func parsePrivateKey(privateKeyPEM []byte) (any, error) {
+	block, _ := pem.Decode(privateKeyPEM)
 	if block == nil {
 		return nil, fmt.Errorf("failed to decode PEM block containing private key")
 	}
@@ -220,17 +220,44 @@ func createFabricCAAuthToken(method, urlPath string, body, certificatePEM, priva
 	// Get BCCSP provider
 
 	// Convert PEM to BCCSP key
-	bccsKey, cryptoServiceProvider, err := pemToBCCSPKey(privateKeyPEM)
+	// bccsKey, cryptoServiceProvider, err := pemToBCCSPKey(privateKeyPEM)
+	privateKey, err := pemToECDSAPrivateKey(privateKeyPEM)
 	if err != nil {
-		return "", fmt.Errorf("failed to convert PEM to BCCSP key: %v", err)
+		return "", fmt.Errorf("failed to convert PEM to ECDSA private key: %v", err)
 	}
 
-	// Use the fabricCAutils.GenECDSAToken function
-	token, err := GenECDSAToken(cryptoServiceProvider, certificatePEM, bccsKey, method, urlPath, body)
+	token, err := genToken(certificatePEM, privateKey, method, urlPath, body)
 
+	return token, nil
+}
+
+func genToken(cert []byte, privateKey *ecdsa.PrivateKey, method, uri string, body []byte) (string, error) {
+	b64body := B64Encode(body)
+	b64cert := B64Encode(cert)
+	b64uri := B64Encode([]byte(uri))
+	payload := method + "." + b64uri + "." + b64body + "." + b64cert
+
+	publicKey, err := pemToECDSAPublicKey(cert)
 	if err != nil {
-		return "", fmt.Errorf("failed to generate ECDSA token: %v", err)
+		return "", fmt.Errorf("failed to convert PEM to ECDSA public key: %v", err)
 	}
+	// Sign the payload
+	digest := SHA256([]byte(payload))
+	signature, err := ecdsaPrivateKeySign(privateKey, digest)
+	if err != nil {
+		return "", fmt.Errorf("failed to sign payload: %v", err)
+	}
+
+	ok, err := ecdsaPrivateKeyVerify(publicKey, digest, signature)
+	if !ok || err != nil {
+		return "", fmt.Errorf("signature verification failed: %v", err)
+	} else if ok {
+		fmt.Println("Signature verification succeeded")
+	}
+	// Encode the signature
+
+	b64sig := B64Encode(signature)
+	token := b64cert + "." + b64sig
 
 	return token, nil
 }
@@ -273,7 +300,7 @@ func extractBscRegistrarCredentials() ([]byte, []byte, error) {
 		return nil, nil, fmt.Errorf("failed to validate certificate: %v", err)
 	}
 
-	privateKey, err := parsePrivateKey(string(keyBytes))
+	privateKey, err := parsePrivateKey(keyBytes)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to validate private key: %v", err)
 	}

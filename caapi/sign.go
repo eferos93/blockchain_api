@@ -106,3 +106,51 @@ func pemToECDSAPrivateKey(privateKeyPEM []byte) (*ecdsa.PrivateKey, error) {
 
 	return ecdsaKey, nil
 }
+
+func pemToX509Certificate(certPEM []byte) (*x509.Certificate, error) {
+	// Decode the PEM block
+	block, _ := pem.Decode(certPEM)
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode PEM block")
+	}
+
+	// Ensure it's a certificate block
+	if block.Type != "CERTIFICATE" {
+		return nil, fmt.Errorf("expected CERTIFICATE block, got %s", block.Type)
+	}
+
+	// Parse the certificate
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse certificate: %v", err)
+	}
+
+	return cert, nil
+}
+
+func extractPublicKeyFromCert(cert *x509.Certificate) (*ecdsa.PublicKey, error) {
+	// Extract the public key
+	publicKey, ok := cert.PublicKey.(*ecdsa.PublicKey)
+	if !ok {
+		return nil, fmt.Errorf("certificate does not contain an ECDSA public key, got type: %T", cert.PublicKey)
+	}
+
+	return publicKey, nil
+}
+
+// Combined function to do both operations
+func pemToECDSAPublicKey(certPEM []byte) (*ecdsa.PublicKey, error) {
+	// Parse certificate
+	cert, err := pemToX509Certificate(certPEM)
+	if err != nil {
+		return nil, err
+	}
+
+	// Extract public key
+	publicKey, err := extractPublicKeyFromCert(cert)
+	if err != nil {
+		return nil, err
+	}
+
+	return publicKey, nil
+}
