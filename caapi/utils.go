@@ -190,11 +190,11 @@ func createFabricCAAuthToken(method, urlPath string, body, certificatePEM, priva
 }
 
 // extractBscRegistrarCredentials extracts certificate and private key of bscRegistrar identity for test purposes
-func extractBscRegistrarCredentials() (string, string, error) {
+func extractBscRegistrarCredentials() ([]byte, []byte, error) {
 	// Get project root
 	projectRoot, err := getProjectRoot()
 	if err != nil {
-		return "", "", fmt.Errorf("failed to find project root: %v", err)
+		return nil, nil, fmt.Errorf("failed to find project root: %v", err)
 	}
 
 	bscRegistrarCertPath := filepath.Join(projectRoot, "identities", "bscRegistrar", "msp", "signcerts", "cert.pem")
@@ -203,33 +203,33 @@ func extractBscRegistrarCredentials() (string, string, error) {
 	// Read certificate
 	certBytes, err := os.ReadFile(bscRegistrarCertPath)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to read bscRegistrar certificate: %v", err)
+		return nil, nil, fmt.Errorf("failed to read bscRegistrar certificate: %v", err)
 	}
 
 	// Read private key (first file in keystore directory)
 	keyFiles, err := os.ReadDir(bscRegistrarKeyPath)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to read bscRegistrar keystore directory: %v", err)
+		return nil, nil, fmt.Errorf("failed to read bscRegistrar keystore directory: %v", err)
 	}
 
 	if len(keyFiles) == 0 {
-		return "", "", fmt.Errorf("no private key found in bscRegistrar keystore directory")
+		return nil, nil, fmt.Errorf("no private key found in bscRegistrar keystore directory")
 	}
 
 	keyBytes, err := os.ReadFile(filepath.Join(bscRegistrarKeyPath, keyFiles[0].Name()))
 	if err != nil {
-		return "", "", fmt.Errorf("failed to read bscRegistrar private key: %v", err)
+		return nil, nil, fmt.Errorf("failed to read bscRegistrar private key: %v", err)
 	}
 
 	// Validate that we can parse both certificate and private key
 	cert, err := parseCertificate(string(certBytes))
 	if err != nil {
-		return "", "", fmt.Errorf("failed to validate certificate: %v", err)
+		return nil, nil, fmt.Errorf("failed to validate certificate: %v", err)
 	}
 
 	privateKey, err := parsePrivateKey(string(keyBytes))
 	if err != nil {
-		return "", "", fmt.Errorf("failed to validate private key: %v", err)
+		return nil, nil, fmt.Errorf("failed to validate private key: %v", err)
 	}
 
 	// Ensure the private key matches the certificate's public key
@@ -237,18 +237,18 @@ func extractBscRegistrarCredentials() (string, string, error) {
 	case *ecdsa.PrivateKey:
 		if certPubKey, ok := cert.PublicKey.(*ecdsa.PublicKey); ok {
 			if !key.PublicKey.Equal(certPubKey) {
-				return "", "", fmt.Errorf("private key does not match certificate public key")
+				return nil, nil, fmt.Errorf("private key does not match certificate public key")
 			}
 		}
 	case *rsa.PrivateKey:
 		if certPubKey, ok := cert.PublicKey.(*rsa.PublicKey); ok {
 			if !key.PublicKey.Equal(certPubKey) {
-				return "", "", fmt.Errorf("private key does not match certificate public key")
+				return nil, nil, fmt.Errorf("private key does not match certificate public key")
 			}
 		}
 	}
 
-	return string(certBytes), string(keyBytes), nil
+	return certBytes, keyBytes, nil
 }
 
 // getAdminCredentialsFromKeystore retrieves admin certificate and private key from keystore

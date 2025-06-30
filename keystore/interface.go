@@ -3,6 +3,7 @@ package keystore
 import "time"
 
 // KeystoreEntry represents a stored private key with metadata
+// TODO change private key and certificate to encrypted PEM format
 type KeystoreEntry struct {
 	EnrollmentID string     `json:"enrollmentId"`
 	MSPID        string     `json:"mspId"`

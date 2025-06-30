@@ -63,7 +63,7 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 	caConfig := caapi.CAConfig{
 		CAURL:   "https://localhost:10055",
 		CAName:  "ca-bsc",
-		MSPID:   "bscMSP",
+		MSPID:   "BscMSP",
 		SkipTLS: true,
 	}
 
@@ -77,14 +77,9 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 			Secret:       "registrarpw",
 		},
 		RegistrationID: "testuser123",
+		Secret:         "testuser123pw",
 		Type:           "client",
-		// Affiliation:    "", // Omit affiliation completely to match registrar0
-		Attributes: []caapi.Attribute{
-			{
-				Name:  "role",
-				Value: "client",
-			},
-		},
+		Affiliation:    "bsc",
 	}
 
 	regBody, _ := json.Marshal(registerRequest)

@@ -202,6 +202,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		"id":          req.RegistrationID,
 		"type":        req.Type,
 		"affiliation": req.Affiliation,
+		"caname":      req.CAConfig.CAName,
 	}
 
 	if req.Secret != "" {
@@ -234,7 +235,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	regHttpReq.Header.Set("Content-Type", "application/json")
 
 	// Get admin credentials from keystore for proper authorization
-	var adminCert, adminPrivateKey string
+	var adminCert, adminPrivateKey []byte
 	if testing.Testing() {
 		log.Println("Running in test mode, using mock admin credentials")
 
@@ -250,11 +251,14 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 		log.Printf("Successfully loaded bscRegistrar credentials for test mode")
 	} else {
-		adminCert, adminPrivateKey, err = getAdminCredentialsFromKeystore(req.AdminIdentity.EnrollmentID, req.CAConfig.MSPID)
+
+		adminCertStr, adminPrivateKeyStr, err := getAdminCredentialsFromKeystore(req.AdminIdentity.EnrollmentID, req.CAConfig.MSPID)
 		if err != nil {
 			http.Error(w, fmt.Sprintf("Failed to retrieve admin credentials: %v", err), http.StatusInternalServerError)
 			return
 		}
+		adminCert = []byte(adminCertStr)
+		adminPrivateKey = []byte(adminPrivateKeyStr)
 	}
 
 	// Parse URL to get the path for signing
@@ -265,7 +269,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create proper Fabric CA authorization token
-	authToken, err := createFabricCAAuthToken("POST", parsedURL.Path, regReqBody, []byte(adminCert), []byte(adminPrivateKey))
+	authToken, err := createFabricCAAuthToken("POST", parsedURL.Path, regReqBody, adminCert, adminPrivateKey)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to create authorization token: %v", err), http.StatusInternalServerError)
 		return
