@@ -20,7 +20,6 @@ import (
 	"github.com/hyperledger/fabric-ca/lib/tls"
 	"github.com/hyperledger/fabric-ca/util"
 	"github.com/hyperledger/fabric-lib-go/bccsp"
-	"github.com/hyperledger/fabric-lib-go/bccsp/factory"
 )
 
 // createFabricCAClient creates a new Fabric CA client with the given configuration
@@ -183,9 +182,8 @@ func toBase64(data []byte) string {
 // Format: <base64_encoded_certificate>.<base64_encoded_signature>
 func createFabricCAAuthToken(clientCsp bccsp.BCCSP, method, urlPath string, body, certificatePEM, privateKeyPEM []byte) (string, error) {
 	// Get BCCSP provider
-
 	// Convert PEM to BCCSP key
-	bccsKey, err := pemToBCCSPKey(privateKeyPEM)
+	bccsKey, err := pemToBCCSPKey(&clientCsp, privateKeyPEM)
 	if err != nil {
 		return "", fmt.Errorf("failed to convert PEM to BCCSP key: %v", err)
 	}
@@ -202,28 +200,17 @@ func createFabricCAAuthToken(clientCsp bccsp.BCCSP, method, urlPath string, body
 // getAdminCredentialsFromKeystore retrieves admin certificate and private key from keystore
 func getAdminCredentialsFromKeystore(enrollmentID, mspID string) ([]byte, []byte, error) {
 	// Use the global keystore instance if available
+	var entry *keystore.KeystoreEntry
+	var err error
 	if keystore.GlobalKeystore != nil {
-		entry, err := keystore.GlobalKeystore.RetrieveKey(enrollmentID, mspID)
+		entry, err = keystore.GlobalKeystore.RetrieveKey(enrollmentID, mspID)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to retrieve admin credentials from global keystore: %v", err)
 		}
 		return entry.Certificate, entry.PrivateKey, nil
+	} else {
+		return nil, nil, fmt.Errorf("keystore not initialized")
 	}
-
-	// Fallback to local BadgerDB keystore for backward compatibility
-	keystoreInstance, err := keystore.NewBadgerKeystore("./badger-keystore", "defaultPassword")
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to initialize BadgerDB keystore: %v", err)
-	}
-	defer keystoreInstance.Close()
-
-	// Retrieve the admin credentials
-	entry, err := keystoreInstance.RetrieveKey(enrollmentID, mspID)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to retrieve admin credentials from keystore: %v", err)
-	}
-
-	return entry.Certificate, entry.PrivateKey, nil
 }
 
 func loadAdminCredentialsForTest() ([]byte, []byte, error) {
@@ -243,9 +230,8 @@ func loadAdminCredentialsForTest() ([]byte, []byte, error) {
 	return certPEM, keyPEM, nil
 }
 
-func pemToBCCSPKey(privateKeyPEM []byte) (bccsp.Key, error) {
+func pemToBCCSPKey(csp *bccsp.BCCSP, privateKeyPEM []byte) (bccsp.Key, error) {
 	// Get the default BCCSP provider
-	csp := factory.GetDefault()
 
 	// Decode the PEM block
 	block, _ := pem.Decode(privateKeyPEM)
@@ -277,7 +263,8 @@ func pemToBCCSPKey(privateKeyPEM []byte) (bccsp.Key, error) {
 	switch pk := privateKey.(type) {
 	case *ecdsa.PrivateKey:
 		// For ECDSA keys
-		bccsKey, err := csp.KeyImport(pk, &bccsp.ECDSAPrivateKeyImportOpts{Temporary: true})
+
+		bccsKey, err := (*csp).KeyImport(block.Bytes, &bccsp.ECDSAPrivateKeyImportOpts{Temporary: true})
 		if err != nil {
 			return nil, fmt.Errorf("failed to import ECDSA private key: %v", err)
 		}

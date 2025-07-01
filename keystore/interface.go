@@ -1,6 +1,9 @@
 package keystore
 
-import "time"
+import (
+	"net/http"
+	"time"
+)
 
 // KeystoreEntry represents a stored private key with metadata
 type KeystoreEntry struct {
@@ -17,15 +20,14 @@ type KeystoreManager interface {
 	StoreKey(enrollmentID, mspID string, privateKeyPEM, certificatePEM []byte) error
 	RetrieveKey(enrollmentID, mspID string) (*KeystoreEntry, error)
 	DeleteKey(enrollmentID, mspID string) error
-	ListKeys() ([]string, error)
+	// ListKeys() ([]string, error)
 	Close() error
 	HealthCheck() error
 }
 
-// BadgerKeystore uses BadgerDB for fast, lightweight encrypted key-value storage
-type BadgerKeystore struct {
-	db        *badger.DB
-	masterKey []byte
+// FileBasedKeystore implements KeystoreManager for test purposes (loads from files, no persistence)
+type FileBasedKeystore struct {
+	BaseDir string // Directory containing enrollmentID/mspID/cert.pem and key.pem
 }
 
 // RemoteBadgerKeystore implements KeystoreManager for remote BadgerDB via HTTP API

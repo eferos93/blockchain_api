@@ -17,6 +17,20 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
+// Helper function to load private key from directory
+func loadPrivateKeyFromDirectory(keyDir string) ([]byte, error) {
+	files, err := os.ReadDir(keyDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read private key directory: %w", err)
+	}
+
+	if len(files) == 0 {
+		return nil, fmt.Errorf("no files found in private key directory: %s", keyDir)
+	}
+
+	return os.ReadFile(path.Join(keyDir, files[0].Name()))
+}
+
 // Helper to compute SHA256 hash of PEM-encoded identity
 func IdentityHashFromPEM(pem string) string {
 	hash := sha256.Sum256([]byte(pem))

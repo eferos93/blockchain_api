@@ -1,21 +1,14 @@
 package client
 
 import (
-	"blockchain-api/keystore"
-	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"path"
 	"sync"
 
 	"github.com/gorilla/sessions"
-	"github.com/hyperledger/fabric-gateway/pkg/identity"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
 // Store the initialized OrgSetups per session token (thread-safe)
@@ -58,158 +51,6 @@ func InitializeWithSession(setup OrgSetup, session *sessions.Session, w http.Res
 		Secure:   false, // Set to true if using HTTPS
 	}
 	return session.Save(r, w)
-}
-
-// Get OrgSetup from session map
-func GetOrgSetup(sessionID string) (*OrgSetup, bool) {
-	val, ok := orgSetupSessions.Load(sessionID)
-	if !ok {
-		return nil, false
-	}
-	return val.(*OrgSetup), true
-}
-
-// Remove OrgSetup from session map
-func RemoveOrgSetup(sessionID string) {
-	orgSetupSessions.Delete(sessionID)
-}
-
-// newGrpcConnection creates a gRPC connection to the Gateway server.
-func (setup OrgSetup) newGrpcConnection() *grpc.ClientConn {
-	certificate, err := loadCertificate(setup.TLSCertPath)
-	if err != nil {
-		panic(err)
-	}
-
-	certPool := x509.NewCertPool()
-	certPool.AddCert(certificate)
-	transportCredentials := credentials.NewClientTLSFromCert(certPool, setup.GatewayPeer)
-
-	connection, err := grpc.NewClient(setup.PeerEndpoint, grpc.WithTransportCredentials(transportCredentials))
-	if err != nil {
-		panic(fmt.Errorf("failed to create gRPC connection: %w", err))
-	}
-
-	return connection
-}
-
-// newIdentity creates a client identity for this Gateway connection using an X.509 certificate.
-func (setup OrgSetup) newIdentity() *identity.X509Identity {
-	var certificate *x509.Certificate
-	var err error
-
-	if setup.UseKeystore {
-		// Validate keystore configuration
-		if setup.EnrollmentID == "" {
-			panic(fmt.Errorf("enrollmentId is required when useKeystore is true"))
-		}
-
-		if keystore.GlobalKeystore == nil {
-			panic(fmt.Errorf("global keystore not initialized - check server configuration"))
-		}
-
-		// Load from keystore
-		certPath, _, err := keystore.GetKeyForFabricClient(setup.EnrollmentID, setup.MSPID)
-		if err != nil {
-			panic(fmt.Errorf("failed to load certificate from keystore: %v", err))
-		}
-
-		certificate, err = loadCertificate(certPath)
-		if err != nil {
-			panic(fmt.Errorf("failed to load certificate from keystore path: %v", err))
-		}
-		log.Printf("Successfully loaded certificate from keystore for enrollment ID: %s", setup.EnrollmentID)
-	} else {
-		// File-based loading (legacy/testing)
-		if setup.CertPath == "" {
-			panic(fmt.Errorf("certPath is required when useKeystore is false"))
-		}
-		certificate, err = loadCertificate(setup.CertPath)
-		if err != nil {
-			panic(fmt.Errorf("failed to load certificate from file: %v", err))
-		}
-		log.Printf("Loaded certificate from file: %s", setup.CertPath)
-	}
-
-	id, err := identity.NewX509Identity(setup.MSPID, certificate)
-	if err != nil {
-		panic(fmt.Errorf("failed to create X509 identity: %v", err))
-	}
-
-	return id
-}
-
-// newSign creates a function that generates a digital signature from a message digest using a private key.
-func (setup OrgSetup) newSign() identity.Sign {
-	var privateKeyPEM []byte
-	var err error
-
-	if setup.UseKeystore {
-		// Validate keystore configuration
-		if setup.EnrollmentID == "" {
-			panic(fmt.Errorf("enrollmentId is required when useKeystore is true"))
-		}
-
-		if keystore.GlobalKeystore == nil {
-			panic(fmt.Errorf("global keystore not initialized - check server configuration"))
-		}
-
-		// Load from keystore
-		_, keyDir, err := keystore.GetKeyForFabricClient(setup.EnrollmentID, setup.MSPID)
-		if err != nil {
-			panic(fmt.Errorf("failed to load private key from keystore: %v", err))
-		}
-
-		privateKeyPEM, err = loadPrivateKeyFromDirectory(keyDir)
-		if err != nil {
-			panic(fmt.Errorf("failed to load private key from keystore directory: %v", err))
-		}
-		log.Printf("Successfully loaded private key from keystore for enrollment ID: %s", setup.EnrollmentID)
-	} else {
-		// File-based loading (legacy/testing)
-		if setup.KeyPath == "" {
-			panic(fmt.Errorf("keyPath is required when useKeystore is false"))
-		}
-		privateKeyPEM, err = loadPrivateKeyFromDirectory(setup.KeyPath)
-		if err != nil {
-			panic(fmt.Errorf("failed to load private key from file: %v", err))
-		}
-		log.Printf("Loaded private key from file: %s", setup.KeyPath)
-	}
-
-	privateKey, err := identity.PrivateKeyFromPEM(privateKeyPEM)
-	if err != nil {
-		panic(fmt.Errorf("failed to parse private key: %v", err))
-	}
-
-	sign, err := identity.NewPrivateKeySign(privateKey)
-	if err != nil {
-		panic(fmt.Errorf("failed to create private key signer: %v", err))
-	}
-
-	return sign
-}
-
-// Helper function to load private key from directory
-func loadPrivateKeyFromDirectory(keyDir string) ([]byte, error) {
-	files, err := os.ReadDir(keyDir)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read private key directory: %w", err)
-	}
-
-	if len(files) == 0 {
-		return nil, fmt.Errorf("no files found in private key directory: %s", keyDir)
-	}
-
-	return os.ReadFile(path.Join(keyDir, files[0].Name()))
-}
-
-func loadCertificate(filename string) (*x509.Certificate, error) {
-	certificatePEM, err := os.ReadFile(filename)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read certificate file: %w", err)
-	}
-	return identity.CertificateFromPEM(certificatePEM)
 }
 
 // Handler for /client/invoke

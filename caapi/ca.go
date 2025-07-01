@@ -222,7 +222,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	httpRegisterReq, err := http.NewRequest("POST", req.CAConfig.CAURL+"/api/v1/register/ca="+req.CAConfig.CAName, bytes.NewBuffer(registrationReqJSON))
 	httpRegisterReq.Header.Set("Content-Type", "application/json")
-	authToken, err := createFabricCAAuthToken(caClient.GetCSP(), "POST", httpRegisterReq.URL.Path, registrationReqJSON, adminCert, adminPrivateKey)
+	authToken, err := createFabricCAAuthToken(caClient.GetCSP(), httpRegisterReq.Method, httpRegisterReq.URL.RequestURI(), registrationReqJSON, adminCert, adminPrivateKey)
 	if err != nil {
 		log.Printf("Failed to create Fabric CA auth token: %v", err)
 		http.Error(w, "Failed to create Fabric CA auth token: "+err.Error(), http.StatusInternalServerError)

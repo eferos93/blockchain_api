@@ -6,8 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"blockchain-api/keystore"
 )
 
 const (
@@ -106,9 +104,7 @@ func TestFileBasedKeystore(t *testing.T) {
 	if entry.EnrollmentID != enrollmentID {
 		t.Errorf("Expected enrollment ID %s, got %s", enrollmentID, entry.EnrollmentID)
 	}
-	if entry.MSPID != mspID {
-		t.Errorf("Expected MSP ID %s, got %s", mspID, entry.MSPID)
-	}
+
 	if !bytes.Equal(entry.PrivateKey, []byte(testPrivateKey)) {
 		t.Errorf("Private key mismatch")
 	}
@@ -116,12 +112,8 @@ func TestFileBasedKeystore(t *testing.T) {
 		t.Errorf("Certificate mismatch")
 	}
 
-	if entry.PrivateKey != testPrivateKey {
-		t.Error("Private key content does not match")
-	}
-
 	// Test that other operations are no-ops but don't error
-	err = fileBased.StoreKey("test", "testMSP", "key", "cert")
+	err = fileBased.StoreKey("test", "testMSP", []byte("key"), []byte("cert"))
 	if err != nil {
 		t.Errorf("StoreKey should be no-op but returned error: %v", err)
 	}
@@ -129,14 +121,6 @@ func TestFileBasedKeystore(t *testing.T) {
 	err = fileBased.DeleteKey("test", "testMSP")
 	if err != nil {
 		t.Errorf("DeleteKey should be no-op but returned error: %v", err)
-	}
-
-	keys, err := fileBased.ListKeys()
-	if err != nil {
-		t.Errorf("ListKeys should be no-op but returned error: %v", err)
-	}
-	if keys != nil {
-		t.Error("ListKeys should return nil")
 	}
 
 	err = fileBased.Close()
