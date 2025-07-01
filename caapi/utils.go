@@ -8,11 +8,8 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/asn1"
-	"encoding/base64"
 	"encoding/pem"
 	"fmt"
-	"math/big"
 	"os"
 	"path/filepath"
 
@@ -138,44 +135,6 @@ func generateCSR(csrInfo CSRInfo) (string, *ecdsa.PrivateKey, error) {
 	})
 
 	return string(csrPEM), privateKey, nil
-}
-
-func ecdsaPrivateKeySign(privateKey *ecdsa.PrivateKey, digest []byte) ([]byte, error) {
-	n := privateKey.Params().Params().N
-
-	r, s, err := ecdsa.Sign(rand.Reader, privateKey, digest)
-	if err != nil {
-		return nil, err
-	}
-
-	s = canonicalECDSASignatureSValue(s, n)
-
-	return asn1ECDSASignature(r, s)
-}
-
-func canonicalECDSASignatureSValue(s *big.Int, curveN *big.Int) *big.Int {
-	halfOrder := new(big.Int).Rsh(curveN, 1)
-	if s.Cmp(halfOrder) <= 0 {
-		return s
-	}
-
-	// Set s to N - s so it is in the lower part of signature space, less or equal to half order
-	return new(big.Int).Sub(curveN, s)
-}
-
-type ecdsaSignature struct {
-	R, S *big.Int
-}
-
-func asn1ECDSASignature(r, s *big.Int) ([]byte, error) {
-	return asn1.Marshal(ecdsaSignature{
-		R: r,
-		S: s,
-	})
-}
-
-func toBase64(data []byte) string {
-	return base64.StdEncoding.EncodeToString(data)
 }
 
 // createFabricCAAuthToken creates the proper authorization token for Fabric CA REST API
