@@ -36,13 +36,13 @@ type Name struct {
 
 // RegistrationRequest represents a request to register a new identity
 type RegistrationRequest struct {
-	CAConfig       CAConfig      `json:"caConfig"`
-	AdminIdentity  AdminIdentity `json:"adminIdentity"`  // Admin credentials
-	RegistrationID string        `json:"registrationId"` // New user ID
-	Secret         string        `json:"secret"`         // Optional secret (auto-generated if empty)
-	Type           string        `json:"type"`           // Identity type (client, peer, orderer, admin)
-	Affiliation    string        `json:"affiliation"`    // User affiliation
-	Attributes     []Attribute   `json:"attributes"`     // Additional attributes
+	CAConfig           CAConfig      `json:"caConfig"`
+	AdminIdentity      AdminIdentity `json:"adminIdentity"`      // Admin credentials
+	UserRegistrationID string        `json:"userRegistrationId"` // New user ID
+	UserSecret         string        `json:"userSecret"`         // Optional secret (auto-generated if empty)
+	Type               string        `json:"type"`               // Identity type (client, peer, orderer, admin)
+	Affiliation        string        `json:"affiliation"`        // User affiliation
+	Attributes         []Attribute   `json:"attrs"`              // Additional attributes
 }
 
 // Attribute represents a user attribute

@@ -6,302 +6,51 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
-	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
-	"net/http"
+	"math/big"
 	"os"
 	"path/filepath"
-	"time"
 
+	"github.com/hyperledger/fabric-ca/lib"
+	"github.com/hyperledger/fabric-ca/lib/tls"
+	"github.com/hyperledger/fabric-ca/util"
 	"github.com/hyperledger/fabric-lib-go/bccsp"
 	"github.com/hyperledger/fabric-lib-go/bccsp/factory"
-	"github.com/pkg/errors"
 )
 
-// Create HTTP client with optional TLS configuration
-func createHTTPClient(config CAConfig) *http.Client {
-	transport := &http.Transport{}
+// createFabricCAClient creates a new Fabric CA client with the given configuration
+func createFabricCAClient(config CAConfig) (*lib.Client, error) {
+	// Create client configuration
+	clientConfig := &lib.ClientConfig{
+		URL:    config.CAURL,
+		CAName: config.CAName,
+		MSPDir: "", // We'll handle credentials separately
+	}
+
+	// Configure TLS if needed
 	if config.SkipTLS {
-		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-	}
-
-	return &http.Client{
-		Transport: transport,
-		Timeout:   30 * time.Second,
-	}
-}
-
-// getProjectRoot finds the project root directory by looking for go.mod
-func getProjectRoot() (string, error) {
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-
-	for {
-		// Check if go.mod exists in current directory
-		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
-			return dir, nil
-		}
-
-		// Move up one directory
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			// Reached root directory
-			break
-		}
-		dir = parent
-	}
-
-	return "", fmt.Errorf("go.mod not found")
-}
-
-// parsePrivateKey parses a private key from PEM format, handling both PKCS#1 and PKCS#8 formats
-func parsePrivateKey(privateKeyPEM string) (any, error) {
-	block, _ := pem.Decode([]byte(privateKeyPEM))
-	if block == nil {
-		return nil, fmt.Errorf("failed to decode PEM block containing private key")
-	}
-
-	// Try different private key formats
-	switch block.Type {
-	case "PRIVATE KEY":
-		// PKCS#8 format
-		fmt.Printf("DEBUG: Found PRIVATE KEY block (PKCS#8 format), block length: %d\n", len(block.Bytes))
-		key, err := x509.ParsePKCS8PrivateKey(block.Bytes)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse PKCS#8 private key: %v", err)
-		}
-		fmt.Printf("DEBUG: Successfully parsed PKCS#8 private key, type: %T\n", key)
-		return key, nil
-
-	case "EC PRIVATE KEY":
-		// ECDSA private key
-		fmt.Printf("DEBUG: Found EC PRIVATE KEY block, block length: %d\n", len(block.Bytes))
-		key, err := x509.ParseECPrivateKey(block.Bytes)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse EC private key: %v", err)
-		}
-		fmt.Printf("DEBUG: Successfully parsed EC private key, curve: %s\n", key.Curve.Params().Name)
-		return key, nil
-
-	case "RSA PRIVATE KEY":
-		// RSA private key
-		fmt.Printf("DEBUG: Found RSA PRIVATE KEY block, block length: %d\n", len(block.Bytes))
-		key, err := x509.ParsePKCS1PrivateKey(block.Bytes)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse RSA private key: %v", err)
-		}
-		fmt.Printf("DEBUG: Successfully parsed RSA private key, bit size: %d\n", key.N.BitLen())
-		return key, nil
-
-	default:
-		fmt.Printf("DEBUG: Unsupported private key block type: %s\n", block.Type)
-		return nil, fmt.Errorf("unsupported private key type: %s", block.Type)
-	}
-}
-
-// parseCertificate parses a certificate from PEM format
-func parseCertificate(certPEM string) (*x509.Certificate, error) {
-	block, _ := pem.Decode([]byte(certPEM))
-	if block == nil {
-		return nil, fmt.Errorf("failed to decode PEM block containing certificate")
-	}
-
-	if block.Type != "CERTIFICATE" {
-		return nil, fmt.Errorf("expected CERTIFICATE block, got %s", block.Type)
-	}
-
-	cert, err := x509.ParseCertificate(block.Bytes)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse certificate: %v", err)
-	}
-
-	return cert, nil
-}
-
-func pemToBCCSPKey(privateKeyPEM []byte) (bccsp.Key, bccsp.BCCSP, error) {
-	// Get the default BCCSP provider
-	cryptoServiceProvider := factory.GetDefault()
-
-	// Decode the PEM block
-	block, _ := pem.Decode(privateKeyPEM)
-	if block == nil {
-		return nil, nil, fmt.Errorf("failed to decode PEM block")
-	}
-
-	// Parse the private key based on the block type
-	var privateKey any
-	var err error
-	switch block.Type {
-	case "PRIVATE KEY":
-		// PKCS#8 format
-		privateKey, err = x509.ParsePKCS8PrivateKey(block.Bytes)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to parse PKCS8 private key: %v", err)
-		}
-	case "EC PRIVATE KEY":
-		// EC format
-		privateKey, err = x509.ParseECPrivateKey(block.Bytes)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to parse EC private key: %v", err)
-		}
-	default:
-		return nil, nil, fmt.Errorf("unsupported private key type: %s", block.Type)
-	}
-
-	// Import the key into BCCSP
-	switch pk := privateKey.(type) {
-	case *ecdsa.PrivateKey:
-		// For ECDSA keys
-		bccsKey, err := cryptoServiceProvider.KeyImport(block.Bytes, &bccsp.ECDSAPrivateKeyImportOpts{Temporary: true})
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to import ECDSA private key: %v", err)
-		}
-		return bccsKey, cryptoServiceProvider, nil
-	default:
-		return nil, nil, fmt.Errorf("unsupported private key type: %T", pk)
-	}
-}
-
-// B64Encode base64 encodes bytes
-func B64Encode(buf []byte) string {
-	return base64.StdEncoding.EncodeToString(buf)
-}
-
-// GenECDSAToken signs the http body and cert with ECDSA using EC private key
-func GenECDSAToken(csp bccsp.BCCSP, cert []byte, key bccsp.Key, method, uri string, body []byte) (string, error) {
-	b64body := B64Encode(body)
-	b64cert := B64Encode(cert)
-	b64uri := B64Encode([]byte(uri))
-	payload := method + "." + b64uri + "." + b64body + "." + b64cert
-
-	return genECDSAToken(csp, key, b64cert, payload)
-}
-
-func genECDSAToken(csp bccsp.BCCSP, key bccsp.Key, b64cert, payload string) (string, error) {
-	digest, digestError := csp.Hash([]byte(payload), &bccsp.SHAOpts{})
-	if digestError != nil {
-		return "", errors.WithMessage(digestError, fmt.Sprintf("Hash failed on '%s'", payload))
-	}
-
-	ecSignature, err := csp.Sign(key, digest, nil)
-	if err != nil {
-		return "", errors.WithMessage(err, "BCCSP signature generation failure")
-	}
-	if len(ecSignature) == 0 {
-		return "", errors.New("BCCSP signature creation failed. Signature must be different than nil")
-	}
-
-	b64sig := B64Encode(ecSignature)
-	token := b64cert + "." + b64sig
-
-	return token, nil
-
-}
-
-// createFabricCAAuthToken creates the proper authorization token for Fabric CA REST API
-// Format: <base64_encoded_certificate>.<base64_encoded_signature>
-func createFabricCAAuthToken(method, urlPath string, body, certificatePEM, privateKeyPEM []byte) (string, error) {
-	// Get BCCSP provider
-
-	// Convert PEM to BCCSP key
-	bccsKey, cryptoServiceProvider, err := pemToBCCSPKey(privateKeyPEM)
-	if err != nil {
-		return "", fmt.Errorf("failed to convert PEM to BCCSP key: %v", err)
-	}
-
-	// Use the fabricCAutils.GenECDSAToken function
-	token, err := GenECDSAToken(cryptoServiceProvider, certificatePEM, bccsKey, method, urlPath, body)
-
-	if err != nil {
-		return "", fmt.Errorf("failed to generate ECDSA token: %v", err)
-	}
-
-	return token, nil
-}
-
-// extractBscRegistrarCredentials extracts certificate and private key of bscRegistrar identity for test purposes
-func extractBscRegistrarCredentials() ([]byte, []byte, error) {
-	// Get project root
-	projectRoot, err := getProjectRoot()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to find project root: %v", err)
-	}
-
-	bscRegistrarCertPath := filepath.Join(projectRoot, "identities", "bscRegistrar", "msp", "signcerts", "cert.pem")
-	bscRegistrarKeyPath := filepath.Join(projectRoot, "identities", "bscRegistrar", "msp", "keystore")
-
-	// Read certificate
-	certBytes, err := os.ReadFile(bscRegistrarCertPath)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read bscRegistrar certificate: %v", err)
-	}
-
-	// Read private key (first file in keystore directory)
-	keyFiles, err := os.ReadDir(bscRegistrarKeyPath)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read bscRegistrar keystore directory: %v", err)
-	}
-
-	if len(keyFiles) == 0 {
-		return nil, nil, fmt.Errorf("no private key found in bscRegistrar keystore directory")
-	}
-
-	keyBytes, err := os.ReadFile(filepath.Join(bscRegistrarKeyPath, keyFiles[0].Name()))
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read bscRegistrar private key: %v", err)
-	}
-
-	// Validate that we can parse both certificate and private key
-	cert, err := parseCertificate(string(certBytes))
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to validate certificate: %v", err)
-	}
-
-	privateKey, err := parsePrivateKey(string(keyBytes))
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to validate private key: %v", err)
-	}
-
-	// Ensure the private key matches the certificate's public key
-	switch key := privateKey.(type) {
-	case *ecdsa.PrivateKey:
-		if certPubKey, ok := cert.PublicKey.(*ecdsa.PublicKey); ok {
-			if !key.PublicKey.Equal(certPubKey) {
-				return nil, nil, fmt.Errorf("private key does not match certificate public key")
-			}
-		}
-	case *rsa.PrivateKey:
-		if certPubKey, ok := cert.PublicKey.(*rsa.PublicKey); ok {
-			if !key.PublicKey.Equal(certPubKey) {
-				return nil, nil, fmt.Errorf("private key does not match certificate public key")
-			}
+		clientConfig.TLS = tls.ClientTLSConfig{
+			Enabled: false,
 		}
 	}
 
-	return certBytes, keyBytes, nil
-}
-
-// getAdminCredentialsFromKeystore retrieves admin certificate and private key from keystore
-func getAdminCredentialsFromKeystore(enrollmentID, mspID string) (string, string, error) {
-	// Use the global keystore instance if available
-	if keystore.GlobalKeystore != nil {
-		entry, err := keystore.GlobalKeystore.RetrieveKey(enrollmentID, mspID)
-		if err != nil {
-			return "", "", fmt.Errorf("failed to retrieve admin credentials from global keystore: %v", err)
-		}
-		return entry.Certificate, entry.PrivateKey, nil
-	} else {
-		return "", "", fmt.Errorf("keystore not initialized")
-		// Alternatively, you can implement a fallback mechanism to retrieve admin credentials
-		// from a different source if the keystore is not available.
+	// Create the client
+	client := &lib.Client{
+		Config: clientConfig,
 	}
+
+	// Initialize the client
+	err := client.Init()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize CA client: %v", err)
+	}
+
+	return client, nil
 }
 
 // GenerateCSR generates a Certificate Signing Request (CSR) for the given common name and hosts
@@ -390,4 +139,150 @@ func generateCSR(csrInfo CSRInfo) (string, *ecdsa.PrivateKey, error) {
 	})
 
 	return string(csrPEM), privateKey, nil
+}
+
+func ecdsaPrivateKeySign(privateKey *ecdsa.PrivateKey, digest []byte) ([]byte, error) {
+	n := privateKey.Params().Params().N
+
+	r, s, err := ecdsa.Sign(rand.Reader, privateKey, digest)
+	if err != nil {
+		return nil, err
+	}
+
+	s = canonicalECDSASignatureSValue(s, n)
+
+	return asn1ECDSASignature(r, s)
+}
+
+func canonicalECDSASignatureSValue(s *big.Int, curveN *big.Int) *big.Int {
+	halfOrder := new(big.Int).Rsh(curveN, 1)
+	if s.Cmp(halfOrder) <= 0 {
+		return s
+	}
+
+	// Set s to N - s so it is in the lower part of signature space, less or equal to half order
+	return new(big.Int).Sub(curveN, s)
+}
+
+type ecdsaSignature struct {
+	R, S *big.Int
+}
+
+func asn1ECDSASignature(r, s *big.Int) ([]byte, error) {
+	return asn1.Marshal(ecdsaSignature{
+		R: r,
+		S: s,
+	})
+}
+
+func toBase64(data []byte) string {
+	return base64.StdEncoding.EncodeToString(data)
+}
+
+// createFabricCAAuthToken creates the proper authorization token for Fabric CA REST API
+// Format: <base64_encoded_certificate>.<base64_encoded_signature>
+func createFabricCAAuthToken(clientCsp bccsp.BCCSP, method, urlPath string, body, certificatePEM, privateKeyPEM []byte) (string, error) {
+	// Get BCCSP provider
+
+	// Convert PEM to BCCSP key
+	bccsKey, err := pemToBCCSPKey(privateKeyPEM)
+	if err != nil {
+		return "", fmt.Errorf("failed to convert PEM to BCCSP key: %v", err)
+	}
+
+	// Use the util.GenECDSAToken function
+	token, err := util.GenECDSAToken(clientCsp, certificatePEM, bccsKey, method, urlPath, body)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate ECDSA token: %v", err)
+	}
+
+	return token, nil
+}
+
+// getAdminCredentialsFromKeystore retrieves admin certificate and private key from keystore
+func getAdminCredentialsFromKeystore(enrollmentID, mspID string) ([]byte, []byte, error) {
+	// Use the global keystore instance if available
+	if keystore.GlobalKeystore != nil {
+		entry, err := keystore.GlobalKeystore.RetrieveKey(enrollmentID, mspID)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to retrieve admin credentials from global keystore: %v", err)
+		}
+		return entry.Certificate, entry.PrivateKey, nil
+	}
+
+	// Fallback to local BadgerDB keystore for backward compatibility
+	keystoreInstance, err := keystore.NewBadgerKeystore("./badger-keystore", "defaultPassword")
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to initialize BadgerDB keystore: %v", err)
+	}
+	defer keystoreInstance.Close()
+
+	// Retrieve the admin credentials
+	entry, err := keystoreInstance.RetrieveKey(enrollmentID, mspID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to retrieve admin credentials from keystore: %v", err)
+	}
+
+	return entry.Certificate, entry.PrivateKey, nil
+}
+
+func loadAdminCredentialsForTest() ([]byte, []byte, error) {
+	// For testing purposes, we can hardcode the admin credentials
+	// In production, this should be retrieved from a secure keystore
+	basePath := filepath.Join("..", "identities", "bscRegistrar", "msp")
+	certPath := filepath.Join(basePath, "signcerts", "cert.pem")
+	keyPath := filepath.Join(basePath, "keystore", "key.pem")
+	certPEM, err := os.ReadFile(certPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read admin certificate: %w", err)
+	}
+	keyPEM, err := os.ReadFile(keyPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read admin private key: %w", err)
+	}
+	return certPEM, keyPEM, nil
+}
+
+func pemToBCCSPKey(privateKeyPEM []byte) (bccsp.Key, error) {
+	// Get the default BCCSP provider
+	csp := factory.GetDefault()
+
+	// Decode the PEM block
+	block, _ := pem.Decode(privateKeyPEM)
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode PEM block")
+	}
+
+	// Parse the private key based on the block type
+	var privateKey any
+	var err error
+	switch block.Type {
+	case "PRIVATE KEY":
+		// PKCS#8 format
+		privateKey, err = x509.ParsePKCS8PrivateKey(block.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse PKCS8 private key: %v", err)
+		}
+	case "EC PRIVATE KEY":
+		// EC format
+		privateKey, err = x509.ParseECPrivateKey(block.Bytes)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse EC private key: %v", err)
+		}
+	default:
+		return nil, fmt.Errorf("unsupported private key type: %s", block.Type)
+	}
+
+	// Import the key into BCCSP
+	switch pk := privateKey.(type) {
+	case *ecdsa.PrivateKey:
+		// For ECDSA keys
+		bccsKey, err := csp.KeyImport(pk, &bccsp.ECDSAPrivateKeyImportOpts{Temporary: true})
+		if err != nil {
+			return nil, fmt.Errorf("failed to import ECDSA private key: %v", err)
+		}
+		return bccsKey, nil
+	default:
+		return nil, fmt.Errorf("unsupported private key type: %T", pk)
+	}
 }

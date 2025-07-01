@@ -65,7 +65,7 @@ func NewRemoteBadgerKeystore(config RemoteBadgerConfig) (*RemoteBadgerKeystore, 
 }
 
 // StoreKey stores an encrypted private key via remote BadgerDB API
-func (r *RemoteBadgerKeystore) StoreKey(enrollmentID, mspID, privateKeyPEM, certificatePEM string) error {
+func (r *RemoteBadgerKeystore) StoreKey(enrollmentID, mspID string, privateKeyPEM, certificatePEM []byte) error {
 	request := APIRequest{
 		EnrollmentID:   enrollmentID,
 		MSPID:          mspID,

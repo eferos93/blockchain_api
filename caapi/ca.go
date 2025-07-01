@@ -5,10 +5,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"testing"
+
+	"github.com/cloudflare/cfssl/csr"
+	"github.com/hyperledger/fabric-ca/api"
 )
 
 // Handler for /fabricCA/info - Get CA information
@@ -22,49 +24,24 @@ func InfoHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create HTTP client
-	client := createHTTPClient(req.CAConfig)
-
-	// Make request to CA info endpoint
-	infoURL := fmt.Sprintf("%s/api/v1/cainfo", req.CAConfig.CAURL)
-	if req.CAConfig.CAName != "" {
-		infoURL += "?ca=" + req.CAConfig.CAName
+	// Create Fabric CA client
+	caClient, err := createFabricCAClient(req.CAConfig)
+	if err != nil {
+		log.Printf("Failed to create CA client: %v", err)
+		http.Error(w, "Failed to create CA client", http.StatusInternalServerError)
+		return
 	}
-
-	resp, err := client.Get(infoURL)
+	caInfoReq := api.GetCAInfoRequest{CAName: req.CAConfig.CAName}
+	// Get CA info using the official client
+	caInfo, err := caClient.GetCAInfo(&caInfoReq)
 	if err != nil {
 		log.Printf("Failed to get CA info: %v", err)
-		http.Error(w, "Failed to connect to CA server", http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Error: %v", err), http.StatusInternalServerError)
 		return
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		http.Error(w, "Failed to read CA response", http.StatusInternalServerError)
-		return
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		http.Error(w, fmt.Sprintf("CA server error: %s", string(body)), resp.StatusCode)
-		return
-	}
-
-	var caInfoResp CAInfoResponse
-	if err := json.Unmarshal(body, &caInfoResp); err != nil {
-		http.Error(w, "Failed to parse CA response", http.StatusInternalServerError)
-		return
-	}
-
-	// Return success response
-	response := map[string]any{
-		"success": true,
-		"message": "CA info retrieved successfully",
-		"caInfo":  caInfoResp.Result,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(caInfo)
 }
 
 // Handler for /fabricCA/enroll - Enroll a new identity
@@ -81,18 +58,23 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Create HTTP client
-	client := createHTTPClient(req.CAConfig)
+	// Create Fabric CA client
+	caClient, err := createFabricCAClient(req.CAConfig)
+	if err != nil {
+		log.Printf("Failed to create CA client: %v", err)
+		http.Error(w, "Failed to create CA client", http.StatusInternalServerError)
+		return
+	}
 
-	// Prepare enrollment request for CA
-	enrollReq := map[string]any{
-		"id":     req.EnrollmentID,
-		"secret": req.Secret,
+	// Create enrollment request
+	enrollmentReq := &api.EnrollmentRequest{
+		Name:   req.EnrollmentID,
+		Secret: req.Secret,
 	}
 
 	// Add CSR if provided
 	if req.CSRInfo.CN != "" {
-		csrPEM, privateKey, err := generateCSR(req.CSRInfo)
+		_, privateKey, err := generateCSR(req.CSRInfo)
 		if err != nil {
 			log.Printf("Failed to generate CSR: %v", err)
 			http.Error(w, "Failed to generate CSR", http.StatusInternalServerError)
@@ -102,66 +84,46 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 		// Store the private key for future use
 		_ = privateKey
 
-		// Add CSR to enrollment request - Fabric CA expects it in the "csr" field
-		enrollReq["csr"] = csrPEM
+		// Set the CSR in the enrollment request
+		enrollmentReq.CSR = &api.CSRInfo{
+			CN:    req.CSRInfo.CN,
+			Hosts: req.CSRInfo.Hosts,
+		}
+
+		// Convert CSRInfo.Names to the expected format
+		if len(req.CSRInfo.Names) > 0 {
+			for _, name := range req.CSRInfo.Names {
+				enrollmentReq.CSR.Names = append(enrollmentReq.CSR.Names, csr.Name{
+					C:  name.C,
+					ST: name.ST,
+					L:  name.L,
+					O:  name.O,
+					OU: name.OU,
+				})
+			}
+		}
 	}
 
 	if req.Profile != "" {
-		enrollReq["profile"] = req.Profile
+		enrollmentReq.Profile = req.Profile
 	}
 
-	reqBody, err := json.Marshal(enrollReq)
-	if err != nil {
-		http.Error(w, "Failed to marshal request", http.StatusInternalServerError)
-		return
-	}
-
-	// Make enrollment request to CA
-	enrollURL := fmt.Sprintf("%s/api/v1/enroll", req.CAConfig.CAURL)
-	if req.CAConfig.CAName != "" {
-		enrollURL += "?ca=" + req.CAConfig.CAName
-	}
-
-	// Create enrollment request
-	httpReq, err := http.NewRequest("POST", enrollURL, bytes.NewBuffer(reqBody))
-	if err != nil {
-		http.Error(w, "Failed to create request", http.StatusInternalServerError)
-		return
-	}
-
-	// Set Content-Type and Authorization headers
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.SetBasicAuth(req.EnrollmentID, req.Secret)
-
-	resp, err := client.Do(httpReq)
+	// Perform enrollment using the official client
+	enrollmentResponse, err := caClient.Enroll(enrollmentReq)
 	if err != nil {
 		log.Printf("Failed to enroll identity: %v", err)
-		http.Error(w, "Failed to connect to CA server", http.StatusInternalServerError)
-		return
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		http.Error(w, "Failed to read CA response", http.StatusInternalServerError)
-		return
-	}
-
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		http.Error(w, fmt.Sprintf("Enrollment failed: %s", string(body)), resp.StatusCode)
-		return
-	}
-
-	// Parse enrollment response
-	var enrollResp map[string]any
-	if err := json.Unmarshal(body, &enrollResp); err != nil {
-		http.Error(w, "Failed to parse enrollment response", http.StatusInternalServerError)
+		http.Error(w, "Failed to enroll identity: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	// Store the enrolled identity in keystore if enrollment was successful
-	if result, ok := enrollResp["result"].(map[string]any); ok {
-		if err := keystore.StoreEnrollmentResult(req.EnrollmentID, req.CAConfig.MSPID, result); err != nil {
+	if enrollmentResponse.Identity != nil {
+		// Create enrollment result for keystore storage
+		enrollResult := map[string]any{
+			"Cert": string(enrollmentResponse.Identity.GetECert().Cert()),
+		}
+
+		if err := keystore.StoreEnrollmentResult(req.EnrollmentID, req.CAConfig.MSPID, enrollResult); err != nil {
 			log.Printf("Warning: Failed to store enrollment result in keystore: %v", err)
 			// Don't fail the request, just log the warning
 		} else {
@@ -173,7 +135,9 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 	response := map[string]any{
 		"success": true,
 		"message": "Identity enrolled successfully",
-		"result":  enrollResp,
+		"result": map[string]any{
+			"certificate": string(enrollmentResponse.Identity.GetECert().Cert()),
+		},
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -189,110 +153,88 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate required fields
-	if req.RegistrationID == "" || req.AdminIdentity.EnrollmentID == "" || req.AdminIdentity.Secret == "" {
+	if req.UserRegistrationID == "" || req.AdminIdentity.EnrollmentID == "" || req.AdminIdentity.Secret == "" {
 		http.Error(w, "registrationId and admin credentials are required", http.StatusBadRequest)
 		return
 	}
 
-	client := createHTTPClient(req.CAConfig)
-
-	// Prepare registration request
-	regReq := map[string]any{
-		"id":          req.RegistrationID,
-		"type":        req.Type,
-		"affiliation": req.Affiliation,
-		"caname":      req.CAConfig.CAName,
-	}
-
-	if req.Secret != "" {
-		regReq["secret"] = req.Secret
-	}
-
-	if len(req.Attributes) > 0 {
-		regReq["attrs"] = req.Attributes
-	}
-
-	regReqBody, err := json.Marshal(regReq)
+	// Create Fabric CA client
+	caClient, err := createFabricCAClient(req.CAConfig)
 	if err != nil {
-		http.Error(w, "Failed to marshal registration request", http.StatusInternalServerError)
+		log.Printf("Failed to create CA client: %v", err)
+		http.Error(w, "Failed to create CA client", http.StatusInternalServerError)
 		return
 	}
 
-	// Make registration request with admin certificate authorization
-	registerURL := fmt.Sprintf("%s/api/v1/register", req.CAConfig.CAURL)
-	if req.CAConfig.CAName != "" {
-		registerURL += "?ca=" + req.CAConfig.CAName
-	}
-
-	// Create registration request with admin certificate
-	regHttpReq, err := http.NewRequest("POST", registerURL, bytes.NewBuffer(regReqBody))
-	if err != nil {
-		http.Error(w, "Failed to create registration request", http.StatusInternalServerError)
-		return
-	}
-
-	regHttpReq.Header.Set("Content-Type", "application/json")
-
-	// Get admin credentials from keystore for proper authorization
+	// Get admin credentials and create admin identity
 	var adminCert, adminPrivateKey []byte
 	if testing.Testing() {
-		log.Println("Running in test mode, using mock admin credentials")
-
-		// Extract cert and private key of bscRegistrar identity for test purposes
-		cert, key, err := extractBscRegistrarCredentials()
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		adminCert = cert
-		adminPrivateKey = key
-
-		log.Printf("Successfully loaded bscRegistrar credentials for test mode")
+		adminCert, adminPrivateKey, err = loadAdminCredentialsForTest()
 	} else {
-
-		adminCertStr, adminPrivateKeyStr, err := getAdminCredentialsFromKeystore(req.AdminIdentity.EnrollmentID, req.CAConfig.MSPID)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Failed to retrieve admin credentials: %v", err), http.StatusInternalServerError)
-			return
-		}
-		adminCert = []byte(adminCertStr)
-		adminPrivateKey = []byte(adminPrivateKeyStr)
+		adminCert, adminPrivateKey, err = getAdminCredentialsFromKeystore(req.AdminIdentity.EnrollmentID, req.CAConfig.MSPID)
 	}
-
-	// Create proper Fabric CA authorization token
-	authToken, err := createFabricCAAuthToken(regHttpReq.Method, regHttpReq.URL.RequestURI(), regReqBody, adminCert, adminPrivateKey)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to create authorization token: %v", err), http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to retrieve admin credentials: %v", err), http.StatusInternalServerError)
 		return
 	}
 
-	// Set the authorization header with the proper format
-	regHttpReq.Header.Set("Authorization", authToken)
+	// Create admin identity using the credential package
+	// adminIdentity, err := credential.NewCredential(adminPrivateKey, adminCert, caClient)
 
-	regResp, err := client.Do(regHttpReq)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to create admin identity: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	// Set the admin identity for the client
+	// caClient.SetIdentity(adminIdentity)
+
+	// Create registration request
+	registrationReq := &api.RegistrationRequest{
+		Name:        req.UserRegistrationID,
+		Type:        req.Type,
+		Affiliation: req.Affiliation,
+		CAName:      req.CAConfig.CAName,
+	}
+
+	if req.UserSecret != "" {
+		registrationReq.Secret = req.UserSecret
+	}
+
+	// Convert attributes to the expected format
+	if len(req.Attributes) > 0 {
+		for _, attr := range req.Attributes {
+			registrationReq.Attributes = append(registrationReq.Attributes, api.Attribute{
+				Name:  attr.Name,
+				Value: attr.Value,
+			})
+		}
+	}
+
+	// Perform registration using the official client
+	// TODO: seems the fabric-ca-client does not support registration directly, so we use the lib.Client
+
+	registrationReqJSON, err := json.Marshal(registrationReq)
+	if err != nil {
+		log.Printf("Failed to marshal registration request: %v", err)
+		http.Error(w, "Failed to marshal registration request: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	httpRegisterReq, err := http.NewRequest("POST", req.CAConfig.CAURL+"/api/v1/register/ca="+req.CAConfig.CAName, bytes.NewBuffer(registrationReqJSON))
+	httpRegisterReq.Header.Set("Content-Type", "application/json")
+	authToken, err := createFabricCAAuthToken(caClient.GetCSP(), "POST", httpRegisterReq.URL.Path, registrationReqJSON, adminCert, adminPrivateKey)
+	if err != nil {
+		log.Printf("Failed to create Fabric CA auth token: %v", err)
+		http.Error(w, "Failed to create Fabric CA auth token: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	httpRegisterReq.Header.Set("Authorization", authToken)
+
+	var secret any
+	caClient.SendReq(httpRegisterReq, secret)
 	if err != nil {
 		log.Printf("Failed to register identity: %v", err)
-		http.Error(w, "Failed to connect to CA server", http.StatusInternalServerError)
-		return
-	}
-	defer regResp.Body.Close()
-
-	body, err := io.ReadAll(regResp.Body)
-	if err != nil {
-		http.Error(w, "Failed to read CA response", http.StatusInternalServerError)
-		return
-	}
-
-	if regResp.StatusCode != http.StatusOK && regResp.StatusCode != http.StatusCreated {
-		http.Error(w, fmt.Sprintf("Registration failed: %s", string(body)), regResp.StatusCode)
-		return
-	}
-
-	// Parse registration response
-	var registerResp map[string]any
-	if err := json.Unmarshal(body, &registerResp); err != nil {
-		http.Error(w, "Failed to parse registration response", http.StatusInternalServerError)
+		http.Error(w, "Failed to register identity: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -300,7 +242,9 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	response := map[string]any{
 		"success": true,
 		"message": "Identity registered successfully",
-		"result":  registerResp,
+		"result": map[string]any{
+			"secret": secret,
+		},
 	}
 
 	w.Header().Set("Content-Type", "application/json")

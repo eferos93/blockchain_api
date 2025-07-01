@@ -162,9 +162,9 @@ func TestRegisterHandler(t *testing.T) {
 			EnrollmentID: "admin",
 			Secret:       "adminpw",
 		},
-		RegistrationID: "newuser",
-		Type:           "client",
-		Affiliation:    "org1.department1",
+		UserRegistrationID: "newuser",
+		Type:               "client",
+		Affiliation:        "org1.department1",
 	}
 
 	body, _ := json.Marshal(requestBody)
@@ -224,7 +224,7 @@ func TestRegisterHandler_MissingFields(t *testing.T) {
 		CAConfig: caapi.CAConfig{
 			CAURL: "http://localhost:7054",
 		},
-		RegistrationID: "newuser",
+		UserRegistrationID: "newuser",
 	}
 
 	body, _ := json.Marshal(requestBody)

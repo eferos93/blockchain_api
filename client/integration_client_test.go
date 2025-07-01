@@ -20,14 +20,14 @@ func init() {
 
 func getTestOrgSetup() client.OrgSetup {
 	// Use test keys and certs from the identities folder
-	base := "../identities/blockClient/msp"
+	base := filepath.Join("..", "identities", "blockClient", "msp")
 	return client.OrgSetup{
 		OrgName:      "bsc",
-		MSPID:        "BscMSP",
+		MSPID:        "BscMSP", // casing is important here!!!!
 		CryptoPath:   base,
-		CertPath:     filepath.Join(base, "signcerts/cert.pem"),
+		CertPath:     filepath.Join(base, "signcerts", "cert.pem"),
 		KeyPath:      filepath.Join(base, "keystore"),
-		TLSCertPath:  filepath.Join(base, "tlscacerts/ca.crt"),
+		TLSCertPath:  filepath.Join(base, "tlscacerts", "ca.crt"),
 		PeerEndpoint: "dns:///localhost:9051",
 		GatewayPeer:  "peer0.bsc.dt4h.com",
 	}
@@ -89,10 +89,9 @@ func TestInvokeHandlerAfterInit(t *testing.T) {
 	invokeRec := httptest.NewRecorder()
 	client.InvokeHandler(invokeRec, invokeReq)
 	if invokeRec.Code != http.StatusOK {
-		t.Errorf("Error Code: %d; Error message: %s", invokeRec.Code, invokeRec.Body.String())
-	} else {
-		t.Logf("Invoke successful: %s", invokeRec.Body.String())
+		t.Errorf("Expected 200 OK for invoke after init, got %d; Message: %s", invokeRec.Code, invokeRec.Body.String())
 	}
+	t.Logf("Invoke Response: %s", invokeRec.Body.String())
 }
 
 func TestQueryHandlerAfterInit(t *testing.T) {
@@ -111,8 +110,7 @@ func TestQueryHandlerAfterInit(t *testing.T) {
 	queryRec := httptest.NewRecorder()
 	client.QueryHandler(queryRec, queryReq)
 	if queryRec.Code != http.StatusOK {
-		t.Errorf("Error Code %d; Error Message: %s", queryRec.Code, queryRec.Body.String())
-	} else {
-		t.Logf("Query successful: %s", queryRec.Body.String())
+		t.Errorf("Expected 200 OK for query after init, got %d; Message: %s", queryRec.Code, queryRec.Body.String())
 	}
+	t.Logf("Query Response: %s", queryRec.Body.String())
 }

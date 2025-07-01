@@ -24,7 +24,7 @@ func TestRealCAInfoHandler(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(requestBody)
-	req := httptest.NewRequest("POST", "/fabricCA/info", bytes.NewBuffer(body))
+	req := httptest.NewRequest("GET", "/fabricCA/info", bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()

@@ -2,7 +2,6 @@ package client
 
 import (
 	"blockchain-api/keystore"
-	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
@@ -12,10 +11,8 @@ import (
 	"os"
 	"path"
 	"sync"
-	"time"
 
 	"github.com/gorilla/sessions"
-	"github.com/hyperledger/fabric-gateway/pkg/client"
 	"github.com/hyperledger/fabric-gateway/pkg/identity"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -45,36 +42,6 @@ func getSessionStore() *sessions.CookieStore {
 		store = sessions.NewCookieStore(authKey, encKey)
 	})
 	return store
-}
-
-// Helper to compute SHA256 hash of PEM-encoded identity
-func IdentityHashFromPEM(pem string) string {
-	hash := sha256.Sum256([]byte(pem))
-	return hex.EncodeToString(hash[:])
-}
-
-// Initialize the setup for the organization.
-func Initialize(setup OrgSetup) (*OrgSetup, error) {
-	log.Printf("Initializing connection for %s...\n", setup.OrgName)
-	clientConnection := setup.newGrpcConnection()
-	id := setup.newIdentity()
-	sign := setup.newSign()
-
-	gateway, err := client.Connect(
-		id,
-		client.WithSign(sign),
-		client.WithClientConnection(clientConnection),
-		client.WithEvaluateTimeout(5*time.Second),
-		client.WithEndorseTimeout(15*time.Second),
-		client.WithSubmitTimeout(5*time.Second),
-		client.WithCommitStatusTimeout(1*time.Minute),
-	)
-	if err != nil {
-		panic(err)
-	}
-	setup.Gateway = *gateway
-	log.Println("Initialization complete")
-	return &setup, nil
 }
 
 // Initialize the setup for the organization and store in session map.

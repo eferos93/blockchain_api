@@ -1,6 +1,8 @@
 package keystore_test
 
 import (
+	"blockchain-api/keystore"
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -104,13 +106,14 @@ func TestFileBasedKeystore(t *testing.T) {
 	if entry.EnrollmentID != enrollmentID {
 		t.Errorf("Expected enrollment ID %s, got %s", enrollmentID, entry.EnrollmentID)
 	}
-
-	if entry.MSPID != "testMSP" {
-		t.Errorf("Expected MSP ID 'testMSP', got %s", entry.MSPID)
+	if entry.MSPID != mspID {
+		t.Errorf("Expected MSP ID %s, got %s", mspID, entry.MSPID)
 	}
-
-	if entry.Certificate != testCertificate {
-		t.Error("Certificate content does not match")
+	if !bytes.Equal(entry.PrivateKey, []byte(testPrivateKey)) {
+		t.Errorf("Private key mismatch")
+	}
+	if !bytes.Equal(entry.Certificate, []byte(testCertificate)) {
+		t.Errorf("Certificate mismatch")
 	}
 
 	if entry.PrivateKey != testPrivateKey {
