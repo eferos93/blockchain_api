@@ -57,14 +57,8 @@ type AdminIdentity struct {
 	Secret       string `json:"secret"`
 }
 
-// CAInfoResponse represents the response from CA info endpoint
-type CAInfoResponse struct {
-	Success bool   `json:"success"`
-	Result  CAInfo `json:"result"`
-}
-
 // CAInfo contains CA server information
-type CAInfo struct {
+type CAInfoResponse struct {
 	CAName                    string `json:"CAName"`
 	CAChain                   string `json:"CAChain"`
 	IssuerPublicKey           string `json:"IssuerPublicKey"`

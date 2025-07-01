@@ -48,7 +48,7 @@ func TestRealCAInfoHandler(t *testing.T) {
 	}
 
 	// Check if we got CA info
-	if caInfo, ok := response["caInfo"].(map[string]any); ok {
+	if caInfo, ok := response["result"].(map[string]any); ok {
 		t.Logf("CA Name: %v", caInfo["CAName"])
 		t.Logf("CA Version: %v", caInfo["Version"])
 	} else {
