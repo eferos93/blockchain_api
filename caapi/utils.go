@@ -5,16 +5,33 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/hyperledger/fabric-ca/util"
 	"github.com/hyperledger/fabric-lib-go/bccsp"
 )
+
+// createHTTPClient creates an HTTP client with optional TLS configuration
+func createHTTPClient(config CAConfig) *http.Client {
+	transport := &http.Transport{}
+
+	if config.SkipTLS {
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	}
+
+	return &http.Client{
+		Transport: transport,
+		Timeout:   30 * time.Second,
+	}
+}
 
 // generateCSR generates a PEM-encoded Certificate Signing Request
 func generateCSR(csrInfo CSRInfo) (string, *ecdsa.PrivateKey, error) {
