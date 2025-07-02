@@ -2,7 +2,6 @@ package caapi
 
 import (
 	"blockchain-api/keystore"
-	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -16,39 +15,6 @@ import (
 	"github.com/hyperledger/fabric-ca/util"
 	"github.com/hyperledger/fabric-lib-go/bccsp"
 )
-
-// GenerateCSR generates a Certificate Signing Request (CSR) for the given common name and hosts
-func GenerateCSR(cn string, hosts []string) (string, error) {
-	priv, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
-	if err != nil {
-		return "", fmt.Errorf("failed to generate private key: %w", err)
-	}
-
-	subject := pkix.Name{
-		CommonName: cn,
-	}
-
-	// Create the CSR template
-	csrTemplate := x509.CertificateRequest{
-		Subject:            subject,
-		DNSNames:           hosts,
-		SignatureAlgorithm: x509.ECDSAWithSHA256,
-	}
-
-	// Create the CSR
-	csrDER, err := x509.CreateCertificateRequest(rand.Reader, &csrTemplate, priv)
-	if err != nil {
-		return "", fmt.Errorf("failed to create certificate request: %w", err)
-	}
-
-	// PEM encode the CSR
-	var csrBuf bytes.Buffer
-	if err := pem.Encode(&csrBuf, &pem.Block{Type: "CERTIFICATE REQUEST", Bytes: csrDER}); err != nil {
-		return "", fmt.Errorf("failed to encode CSR to PEM: %w", err)
-	}
-
-	return csrBuf.String(), nil
-}
 
 // generateCSR generates a PEM-encoded Certificate Signing Request
 func generateCSR(csrInfo CSRInfo) (string, *ecdsa.PrivateKey, error) {

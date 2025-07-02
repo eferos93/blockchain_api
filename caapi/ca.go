@@ -98,10 +98,6 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 	client := createHTTPClient(req.CAConfig)
 
 	// Prepare enrollment request for CA
-	// enrollReq := api.EnrollmentRequest{
-	// 	Name:   req.EnrollmentID,
-	// 	Secret: req.Secret,
-	// }
 	enrollReq := EnrollmentRequestREST{}
 	// Add CSR if provided
 	if req.CSRInfo.CN != "" {
