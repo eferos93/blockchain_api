@@ -76,8 +76,8 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 			EnrollmentID: "registrar0",
 			Secret:       "registrarpw",
 		},
-		UserRegistrationID: "testuser123",
-		UserSecret:         "testuser123pw",
+		UserRegistrationID: "testuser1234",
+		UserSecret:         "testuser1234pw",
 		Type:               "client",
 	}
 
