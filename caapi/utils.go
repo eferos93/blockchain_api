@@ -13,41 +13,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/hyperledger/fabric-ca/lib"
-	"github.com/hyperledger/fabric-ca/lib/tls"
 	"github.com/hyperledger/fabric-ca/util"
 	"github.com/hyperledger/fabric-lib-go/bccsp"
 )
-
-// createFabricCAClient creates a new Fabric CA client with the given configuration
-func createFabricCAClient(config CAConfig) (*lib.Client, error) {
-	// Create client configuration
-	clientConfig := &lib.ClientConfig{
-		URL:    config.CAURL,
-		CAName: config.CAName,
-		MSPDir: "", // We'll handle credentials separately
-	}
-
-	// Configure TLS if needed
-	if config.SkipTLS {
-		clientConfig.TLS = tls.ClientTLSConfig{
-			Enabled: false,
-		}
-	}
-
-	// Create the client
-	client := &lib.Client{
-		Config: clientConfig,
-	}
-
-	// Initialize the client
-	err := client.Init()
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize CA client: %v", err)
-	}
-
-	return client, nil
-}
 
 // GenerateCSR generates a Certificate Signing Request (CSR) for the given common name and hosts
 func GenerateCSR(cn string, hosts []string) (string, error) {
