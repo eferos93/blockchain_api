@@ -12,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/cloudflare/cfssl/csr"
 	"github.com/hyperledger/fabric-ca/api"
 	"github.com/hyperledger/fabric-lib-go/bccsp/factory"
 )
@@ -99,14 +98,14 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 	client := createHTTPClient(req.CAConfig)
 
 	// Prepare enrollment request for CA
-	enrollReq := api.EnrollmentRequest{
-		Name:   req.EnrollmentID,
-		Secret: req.Secret,
-	}
-
+	// enrollReq := api.EnrollmentRequest{
+	// 	Name:   req.EnrollmentID,
+	// 	Secret: req.Secret,
+	// }
+	enrollReq := EnrollmentRequestREST{}
 	// Add CSR if provided
 	if req.CSRInfo.CN != "" {
-		_, privateKey, err := generateCSR(req.CSRInfo)
+		csrPEM, privateKey, err := generateCSR(req.CSRInfo)
 		if err != nil {
 			log.Printf("Failed to generate CSR: %v", err)
 			http.Error(w, "Failed to generate CSR", http.StatusInternalServerError)
@@ -117,27 +116,12 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 		_ = privateKey
 
 		// Set the CSR in the enrollment request
-		enrollReq.CSR = &api.CSRInfo{
-			CN:    req.CSRInfo.CN,
-			Hosts: req.CSRInfo.Hosts,
-		}
+		enrollReq.CertificateRequest = csrPEM
 
-		// Convert CSRInfo.Names to the expected format
-		if len(req.CSRInfo.Names) > 0 {
-			for _, name := range req.CSRInfo.Names {
-				enrollReq.CSR.Names = append(enrollReq.CSR.Names, csr.Name{
-					C:  name.C,
-					ST: name.ST,
-					L:  name.L,
-					O:  name.O,
-					OU: name.OU,
-				})
-			}
-		}
 	}
 
 	if req.Profile != "" {
-		enrollReq.Profile = req.Profile
+		enrollReq.Profile = &req.Profile
 	}
 
 	reqBody, err := json.Marshal(enrollReq)
@@ -161,7 +145,7 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Set Content-Type and Authorization headers
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.SetBasicAuth(enrollReq.Name, enrollReq.Secret)
+	httpReq.SetBasicAuth(req.EnrollmentID, req.Secret)
 
 	resp, err := client.Do(httpReq)
 	if err != nil {

@@ -18,6 +18,14 @@ type EnrollmentRequest struct {
 	CSRInfo      CSRInfo  `json:"csrInfo"`      // Certificate signing request info
 }
 
+type EnrollmentRequestREST struct {
+	CertificateRequest string      `json:"certificate_request"` // PEM-encoded CSR
+	Profile            *string     `json:"profile,omitempty"`   // Certificate profile (optional)
+	Label              *string     `json:"label,omitempty"`     // Label for the certificate, only used in HSM
+	CAName             *string     `json:"caname,omitempty"`    // CA name, if not provided, the default CA will be used
+	Attributes         []Attribute `json:"attr_req,omitempty"`  // Additional attributes for the identity
+}
+
 // CSRInfo contains certificate signing request information
 type CSRInfo struct {
 	CN    string   `json:"cn"`    // Common Name
