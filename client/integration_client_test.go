@@ -2,6 +2,7 @@ package client_test
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -18,10 +19,10 @@ func init() {
 	os.Setenv("SESSION_ENC_KEY", "3b0b45871551d858151aa7c1fd808673e455059503ee66aaba63cf128ec4f42c")
 }
 
-func getTestOrgSetup() client.OrgSetup {
+func getTestOrgSetup() client.ClientRequestBody {
 	// Use test keys and certs from the identities folder
 	base := filepath.Join("..", "identities", "blockClient", "msp")
-	return client.OrgSetup{
+	var orgSetup client.OrgSetup = client.OrgSetup{
 		OrgName:      "bsc",
 		MSPID:        "BscMSP", // casing is important here!!!!
 		CryptoPath:   base,
@@ -31,11 +32,16 @@ func getTestOrgSetup() client.OrgSetup {
 		PeerEndpoint: "dns:///localhost:9051",
 		GatewayPeer:  "peer0.bsc.dt4h.com",
 	}
+	var body client.ClientRequestBody = client.ClientRequestBody{
+		OrgSetup: orgSetup,
+		Secret:   base64.StdEncoding.EncodeToString([]byte("blockclientpw")),
+	}
+	return body
 }
 
 func TestInitialize(t *testing.T) {
 	org := getTestOrgSetup()
-	_, err := client.Initialize(org)
+	_, err := client.Initialize(org.OrgSetup, org.Secret)
 	if err != nil {
 		t.Fatalf("Failed to initialize OrgSetup: %v", err)
 	}

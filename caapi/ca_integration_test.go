@@ -127,10 +127,10 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 
 	enrollRequest := caapi.EnrollmentRequest{
 		CAConfig:     caConfig,
-		EnrollmentID: "testuser123",
+		EnrollmentID: "testuser1234",
 		Secret:       userSecret,
 		CSRInfo: caapi.CSRInfo{
-			CN: "testuser123",
+			CN: "testuser1234",
 			Names: []caapi.Name{
 				{
 					C:  "ES",
@@ -140,6 +140,7 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 					OU: "client",
 				},
 			},
+			Hosts: []string{"localhost", "testuser1234.bsc.dt4h.com"},
 		},
 	}
 

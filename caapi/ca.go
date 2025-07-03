@@ -3,6 +3,8 @@ package caapi
 import (
 	"blockchain-api/keystore"
 	"bytes"
+	"crypto/ecdsa"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -83,17 +85,17 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Prepare enrollment request for CA
 	enrollReq := EnrollmentRequestREST{}
+	var privateKey *ecdsa.PrivateKey
+	var csrPEM string
+	var err error
 	// Add CSR if provided
 	if req.CSRInfo.CN != "" {
-		csrPEM, privateKey, err := generateCSR(req.CSRInfo)
+		csrPEM, privateKey, err = generateCSR(req.CSRInfo)
 		if err != nil {
 			log.Printf("Failed to generate CSR: %v", err)
 			http.Error(w, "Failed to generate CSR", http.StatusInternalServerError)
 			return
 		}
-
-		// Store the private key for future use
-		_ = privateKey
 
 		// Set the CSR in the enrollment request
 		enrollReq.CertificateRequest = csrPEM
@@ -155,7 +157,12 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Store the enrolled identity in keystore if enrollment was successful
 	if result, ok := enrollResp["result"].(map[string]any); ok {
-		if err := keystore.StoreEnrollmentResult(req.EnrollmentID, req.CAConfig.MSPID, result); err != nil {
+		certificatePEM, err := base64.StdEncoding.DecodeString(result["Cert"].(string))
+		if err != nil {
+			http.Error(w, "Failed to decode certificate from enrollment response", http.StatusInternalServerError)
+			return
+		}
+		if err := keystore.StorePrivateKey(req.EnrollmentID, req.CAConfig.MSPID, req.Secret, certificatePEM, privateKey); err != nil {
 			log.Printf("Warning: Failed to store enrollment result in keystore: %v", err)
 			// Don't fail the request, just log the warning
 		} else {
@@ -232,7 +239,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	if testing.Testing() {
 		adminCert, adminPrivateKey, err = loadAdminCredentialsForTest()
 	} else {
-		adminCert, adminPrivateKey, err = getAdminCredentialsFromKeystore(req.AdminIdentity.EnrollmentID, req.CAConfig.MSPID)
+		adminCert, adminPrivateKey, err = getAdminCredentialsFromKeystore(req.AdminIdentity.EnrollmentID, req.CAConfig.MSPID, req.AdminIdentity.Secret)
 	}
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to retrieve admin credentials: %v", err), http.StatusInternalServerError)

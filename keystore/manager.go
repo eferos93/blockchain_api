@@ -1,13 +1,17 @@
 package keystore
 
 import (
+	"crypto/ecdsa"
+	"crypto/rand"
+	"crypto/sha256"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"os"
-	"path/filepath"
 	"time"
+
+	"golang.org/x/crypto/pbkdf2"
 )
 
 // GlobalKeystore is the application-wide keystore instance
@@ -34,76 +38,97 @@ func InitializeKeystore(keystoreType, config, masterPassword string) error {
 		}
 
 		GlobalKeystore = remoteDB
-	case "file_based":
-		// File-based keystore for test purposes
-		GlobalKeystore = NewFileBasedKeystore(config)
-		return nil
 	default:
-		return fmt.Errorf("unsupported keystore type: %s (supported: remote_badger for keystore, or use file-based paths directly)", keystoreType)
+		return fmt.Errorf("unsupported keystore type: %s (only remote_badger is supported)", keystoreType)
 	}
 	return nil
 }
 
-// StoreEnrollmentResult stores the results from CA enrollment
-func StoreEnrollmentResult(enrollmentID, mspID string, enrollmentResult map[string]any) error {
-	if GlobalKeystore == nil {
-		return fmt.Errorf("keystore not initialized")
-	}
+// DeriveStorageKey derives a storage key from user secret without exposing it
+func DeriveStorageKey(enrollmentID, mspID, userSecret string) (string, error) {
+	// Generate or retrieve a salt for this user
+	saltKey := fmt.Sprintf("salt:%s:%s", mspID, enrollmentID)
 
-	// Extract certificate and private key from enrollment result
-	cert, ok := enrollmentResult["Cert"].([]byte)
-	if !ok {
-		return fmt.Errorf("certificate not found in enrollment result")
-	}
-
-	// Some CA servers return the private key, others require it to be generated client-side
-	privateKey, hasPrivateKey := enrollmentResult["PrivateKey"].([]byte)
-	if !hasPrivateKey {
-		return fmt.Errorf("private key not found in enrollment result")
-	}
-
-	return GlobalKeystore.StoreKey(enrollmentID, mspID, privateKey, cert)
-}
-
-// CreateMSPStructure creates traditional Fabric MSP folder structure from keystore
-func CreateMSPStructure(enrollmentID, mspID, outputPath string) error {
-	if GlobalKeystore == nil {
-		return fmt.Errorf("keystore not initialized")
-	}
-
-	entry, err := GlobalKeystore.RetrieveKey(enrollmentID, mspID)
+	salt, err := GlobalKeystore.GetSalt(saltKey)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve key: %w", err)
-	}
+		// Generate new salt if doesn't exist
+		saltBytes := make([]byte, 32)
+		if _, err := rand.Read(saltBytes); err != nil {
+			return "", fmt.Errorf("failed to generate salt: %w", err)
+		}
+		salt = hex.EncodeToString(saltBytes)
 
-	// Create MSP directory structure
-	mspPath := filepath.Join(outputPath, enrollmentID, "msp")
-	dirs := []string{
-		filepath.Join(mspPath, "signcerts"),
-		filepath.Join(mspPath, "keystore"),
-		filepath.Join(mspPath, "cacerts"),
-		filepath.Join(mspPath, "tlscacerts"),
-	}
-
-	for _, dir := range dirs {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			return fmt.Errorf("failed to create directory %s: %w", dir, err)
+		// Store salt for future use
+		if err := GlobalKeystore.StoreSalt(saltKey, salt); err != nil {
+			return "", fmt.Errorf("failed to store salt: %w", err)
 		}
 	}
 
-	// Write certificate
-	certPath := filepath.Join(mspPath, "signcerts", "cert.pem")
-	if err := os.WriteFile(certPath, []byte(entry.Certificate), 0644); err != nil {
-		return fmt.Errorf("failed to write certificate: %w", err)
+	// Use PBKDF2 to derive a strong key from the user secret
+	combined := fmt.Sprintf("%s:%s:%s", enrollmentID, mspID, userSecret)
+	saltBytes, _ := hex.DecodeString(salt)
+	derivedKey := pbkdf2.Key([]byte(combined), saltBytes, 10000, 32, sha256.New)
+
+	return hex.EncodeToString(derivedKey), nil
+}
+
+// StorePrivateKey stores the results from CA enrollment using user secret
+func StorePrivateKey(enrollmentID, mspID, userSecret string, cert []byte, privateKey *ecdsa.PrivateKey) error {
+	if GlobalKeystore == nil {
+		return fmt.Errorf("keystore not initialized")
 	}
 
-	// Write private key
-	keyPath := filepath.Join(mspPath, "keystore", "key.pem")
-	if err := os.WriteFile(keyPath, []byte(entry.PrivateKey), 0600); err != nil {
-		return fmt.Errorf("failed to write private key: %w", err)
+	// Derive storage key from user secret
+	storageKey, err := DeriveStorageKey(enrollmentID, mspID, userSecret)
+	if err != nil {
+		return fmt.Errorf("failed to derive storage key: %w", err)
 	}
 
-	return nil
+	// Convert private key to PEM format
+	privateKeyPEM, err := convertPrivateKeyToPEM(privateKey)
+	if err != nil {
+		return fmt.Errorf("failed to convert private key to PEM: %w", err)
+	}
+
+	// Hash certificate for logging/audit purposes
+	certHash, err := HashCertificate(cert)
+	if err != nil {
+		fmt.Printf("Warning: failed to hash certificate: %v\n", err)
+	} else {
+		fmt.Printf("Storing certificate with hash: %s for user: %s\n", certHash, enrollmentID)
+	}
+
+	return GlobalKeystore.StoreKey(storageKey, mspID, cert, privateKeyPEM)
+}
+
+// convertPrivateKeyToPEM converts an ECDSA private key to PEM format
+func convertPrivateKeyToPEM(privateKey *ecdsa.PrivateKey) ([]byte, error) {
+	privateKeyBytes, err := x509.MarshalECPrivateKey(privateKey)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal private key: %w", err)
+	}
+
+	privateKeyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "EC PRIVATE KEY",
+		Bytes: privateKeyBytes,
+	})
+
+	return privateKeyPEM, nil
+}
+
+// RetrievePrivateKey retrieves private key using user secret
+func RetrievePrivateKey(enrollmentID, mspID, userSecret string) (*KeystoreEntry, error) {
+	if GlobalKeystore == nil {
+		return nil, fmt.Errorf("keystore not initialized")
+	}
+
+	// Derive the same storage key
+	storageKey, err := DeriveStorageKey(enrollmentID, mspID, userSecret)
+	if err != nil {
+		return nil, fmt.Errorf("failed to derive storage key: %w", err)
+	}
+
+	return GlobalKeystore.RetrieveKey(storageKey)
 }
 
 // ValidateCertificate validates that a certificate is properly formatted and not expired
@@ -127,18 +152,18 @@ func ValidateCertificate(certPEM []byte) error {
 }
 
 // GetKeyForFabricClient retrieves key material for use with Fabric client
-func GetKeyForFabricClient(enrollmentID, mspID string) (certPEM []byte, keyPEM []byte, err error) {
+func GetKeyForFabricClient(enrollmentID, mspID, userSecret string) (certPEM []byte, keyPEM []byte, err error) {
 	if GlobalKeystore == nil {
 		return nil, nil, fmt.Errorf("keystore not initialized")
 	}
 
-	entry, err := GlobalKeystore.RetrieveKey(enrollmentID, mspID)
+	entry, err := RetrievePrivateKey(enrollmentID, mspID, userSecret)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to retrieve key: %w", err)
 	}
 
 	// Validate certificate
-	if err := ValidateCertificate(entry.Certificate); err != nil {
+	if err := ValidateCertificate([]byte(entry.Certificate)); err != nil {
 		return nil, nil, fmt.Errorf("certificate validation failed: %w", err)
 	}
 
@@ -147,4 +172,15 @@ func GetKeyForFabricClient(enrollmentID, mspID string) (certPEM []byte, keyPEM [
 	keyPEM = []byte(entry.PrivateKey)
 
 	return certPEM, keyPEM, nil
+}
+
+// HashCertificate creates a SHA256 hash of the certificate for integrity verification
+func HashCertificate(certPEM []byte) (string, error) {
+	block, _ := pem.Decode(certPEM)
+	if block == nil {
+		return "", fmt.Errorf("invalid PEM certificate")
+	}
+
+	hash := sha256.Sum256(block.Bytes)
+	return hex.EncodeToString(hash[:]), nil
 }

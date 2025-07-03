@@ -108,12 +108,13 @@ func createFabricCAAuthToken(clientCsp bccsp.BCCSP, method, urlPath string, body
 }
 
 // getAdminCredentialsFromKeystore retrieves admin certificate and private key from keystore
-func getAdminCredentialsFromKeystore(enrollmentID, mspID string) ([]byte, []byte, error) {
+func getAdminCredentialsFromKeystore(enrollmentID, mspID, userSecret string) ([]byte, []byte, error) {
 	// Use the global keystore instance if available
 	var entry *keystore.KeystoreEntry
 	var err error
 	if keystore.GlobalKeystore != nil {
-		entry, err = keystore.GlobalKeystore.RetrieveKey(enrollmentID, mspID)
+
+		entry, err = keystore.RetrievePrivateKey(enrollmentID, mspID, userSecret)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to retrieve admin credentials from global keystore: %v", err)
 		}

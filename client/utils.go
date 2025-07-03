@@ -4,6 +4,7 @@ import (
 	"blockchain-api/keystore"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -38,17 +39,18 @@ func IdentityHashFromPEM(pem string) string {
 }
 
 // Initialize the setup for the organization.
-func Initialize(setup OrgSetup) (*OrgSetup, error) {
+func Initialize(setup OrgSetup, userSecretB64 string) (*OrgSetup, error) {
+	userSecret, err := base64.StdEncoding.DecodeString(userSecretB64)
 	log.Printf("Initializing connection for %s...\n", setup.OrgName)
 	clientConnection, err := setup.newGrpcConnection()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC connection: %w", err)
 	}
-	id, err := setup.newIdentity()
+	id, err := setup.newIdentity(userSecret)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create identity: %w", err)
 	}
-	sign, err := setup.newSign()
+	sign, err := setup.newSign(userSecret)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create sign function: %w", err)
 	}
@@ -105,14 +107,14 @@ func (setup OrgSetup) newGrpcConnection() (*grpc.ClientConn, error) {
 }
 
 // newIdentity creates a client identity for this Gateway connection using an X.509 certificate.
-func (setup OrgSetup) newIdentity() (*identity.X509Identity, error) {
+func (setup OrgSetup) newIdentity(userSecret []byte) (*identity.X509Identity, error) {
 	var certificate *x509.Certificate
 	var certficatePEM []byte
 	var err error
 
 	if setup.UseKeystore && setup.EnrollmentID != "" {
 		// Load from keystore
-		certficatePEM, _, err = keystore.GetKeyForFabricClient(setup.EnrollmentID, setup.MSPID)
+		certficatePEM, _, err = keystore.GetKeyForFabricClient(setup.EnrollmentID, setup.MSPID, string(userSecret))
 		if err != nil {
 			return nil, fmt.Errorf("failed to get certificate from keystore: %w", err)
 		}
@@ -135,13 +137,13 @@ func (setup OrgSetup) newIdentity() (*identity.X509Identity, error) {
 }
 
 // newSign creates a function that generates a digital signature from a message digest using a private key.
-func (setup OrgSetup) newSign() (identity.Sign, error) {
+func (setup OrgSetup) newSign(userSecret []byte) (identity.Sign, error) {
 	var privateKeyPEM []byte
 	var err error
 
 	if setup.UseKeystore && setup.EnrollmentID != "" {
 		// Load from keystore
-		_, privateKeyPEM, err = keystore.GetKeyForFabricClient(setup.EnrollmentID, setup.MSPID)
+		_, privateKeyPEM, err = keystore.GetKeyForFabricClient(setup.EnrollmentID, setup.MSPID, string(userSecret))
 		if err != nil {
 			return nil, fmt.Errorf("failed to get key from keystore: %w", err)
 		}

@@ -38,8 +38,9 @@ func getSessionStore() *sessions.CookieStore {
 }
 
 // Initialize the setup for the organization and store in session map.
-func InitializeWithSession(setup OrgSetup, session *sessions.Session, w http.ResponseWriter, r *http.Request) error {
-	orgSetup, err := Initialize(setup)
+func InitializeWithSession(clientRequestBody ClientRequestBody, session *sessions.Session, w http.ResponseWriter, r *http.Request) error {
+
+	orgSetup, err := Initialize(clientRequestBody.OrgSetup, clientRequestBody.Secret)
 	if err != nil {
 		return err
 	}
@@ -102,13 +103,14 @@ func QueryHandler(w http.ResponseWriter, r *http.Request) {
 
 // Handler for /client/ (initializes connection to Fabric blockchain)
 func ClientHandler(w http.ResponseWriter, r *http.Request) {
-	var orgConfig OrgSetup
-	if err := json.NewDecoder(r.Body).Decode(&orgConfig); err != nil {
+
+	var clientRequestBody ClientRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&clientRequestBody); err != nil {
 		http.Error(w, "Invalid OrgSetup: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 	session, _ := getSessionStore().Get(r, "fabric-session")
-	if err := InitializeWithSession(orgConfig, session, w, r); err != nil {
+	if err := InitializeWithSession(clientRequestBody, session, w, r); err != nil {
 		http.Error(w, "Error initializing org: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

@@ -34,9 +34,9 @@ func NewRemoteBadgerKeystore(config RemoteBadgerConfig) (*RemoteBadgerKeystore, 
 }
 
 // StoreKey stores an encrypted private key via remote BadgerDB API
-func (r *RemoteBadgerKeystore) StoreKey(enrollmentID, mspID string, privateKeyPEM, certificatePEM []byte) error {
-	request := APIRequest{
-		EnrollmentID:   enrollmentID,
+func (r *RemoteBadgerKeystore) StoreKey(storageKey, mspID string, privateKeyPEM, certificatePEM []byte) error {
+	request := StoreKeyRequest{
+		StorageKey:     storageKey,
 		MSPID:          mspID,
 		PrivateKeyPEM:  privateKeyPEM,
 		CertificatePEM: certificatePEM,
@@ -47,10 +47,9 @@ func (r *RemoteBadgerKeystore) StoreKey(enrollmentID, mspID string, privateKeyPE
 }
 
 // RetrieveKey retrieves and decrypts a private key via remote BadgerDB API
-func (r *RemoteBadgerKeystore) RetrieveKey(enrollmentID, mspID string) (*KeystoreEntry, error) {
-	request := APIRequest{
-		EnrollmentID: enrollmentID,
-		MSPID:        mspID,
+func (r *RemoteBadgerKeystore) RetrieveKey(storageKey string) (*KeystoreEntry, error) {
+	request := GetKeyRequest{
+		StorageKey: storageKey,
 	}
 
 	response, err := r.makeRequest("POST", "/keystore/retrieve", request)
@@ -59,17 +58,18 @@ func (r *RemoteBadgerKeystore) RetrieveKey(enrollmentID, mspID string) (*Keystor
 	}
 
 	if response.Data == nil {
-		return nil, fmt.Errorf("key not found for %s:%s", enrollmentID, mspID)
+		return nil, fmt.Errorf("key not found")
 	}
 
 	return response.Data, nil
 }
 
 // DeleteKey removes a key via remote BadgerDB API
-func (r *RemoteBadgerKeystore) DeleteKey(enrollmentID, mspID string) error {
-	request := APIRequest{
+func (r *RemoteBadgerKeystore) DeleteKey(enrollmentID, mspID, storageKey string) error {
+	request := DeleteKeyRequest{
 		EnrollmentID: enrollmentID,
 		MSPID:        mspID,
+		StorageKey:   storageKey,
 	}
 
 	_, err := r.makeRequest("DELETE", "/keystore/delete", request)
@@ -100,7 +100,7 @@ func (r *RemoteBadgerKeystore) Close() error {
 }
 
 // makeRequest makes an HTTP request to the remote BadgerDB API
-func (r *RemoteBadgerKeystore) makeRequest(method, endpoint string, payload APIRequest) (*APIResponse, error) {
+func (r *RemoteBadgerKeystore) makeRequest(method, endpoint string, payload any) (*APIResponse, error) {
 	// Serialize payload
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
@@ -116,7 +116,7 @@ func (r *RemoteBadgerKeystore) makeRequest(method, endpoint string, payload APIR
 
 	// Set headers
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+r.apiKey)
+	req.Header.Set("authorization", "Bearer "+r.apiKey)
 
 	// Make request
 	resp, err := r.httpClient.Do(req)
