@@ -3,14 +3,29 @@ package caapi_test
 import (
 	"blockchain-api/caapi"
 	"bytes"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
+	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 // Integration tests for real CA server
 // These tests require a running CA server at localhost:10055
+
+func generateTestUserID() string {
+	// Method 1: Using crypto/rand (more secure)
+	bytes := make([]byte, 6)
+	if _, err := rand.Read(bytes); err != nil {
+		// Fallback to math/rand if crypto/rand fails
+		rand.Seed(time.Now().UnixNano())
+		return fmt.Sprintf("testuser%d", rand.Intn(999999))
+	}
+	return "testuser" + hex.EncodeToString(bytes)
+}
 
 func TestRealCAInfoHandler(t *testing.T) {
 	// Test request with real CA configuration
@@ -67,6 +82,8 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 		SkipTLS: true,
 	}
 
+	userID := generateTestUserID()
+	userPW := userID + "pw"
 	// Step 1: Register a new user
 	t.Log("=== Step 1: Registering new user ===")
 
@@ -76,8 +93,8 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 			EnrollmentID: "registrar0",
 			Secret:       "registrarpw",
 		},
-		UserRegistrationID: "testuser1234",
-		UserSecret:         "testuser1234pw",
+		UserRegistrationID: userID,
+		UserSecret:         userPW,
 		Type:               "client",
 	}
 
@@ -114,11 +131,11 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 	} else {
 		t.Logf("Registration failed (code %d) - user might already exist, trying with default secret", regRecorder.Code)
 		// If registration failed because user exists, try with a common default secret
-		userSecret = "testuser123pw"
+		userSecret = "testuser1234pw"
 	}
 
 	if userSecret == "" {
-		userSecret = "testuser123pw" // fallback secret
+		userSecret = userPW // fallback secret
 		t.Logf("Using fallback secret: %s", userSecret)
 	}
 
@@ -127,10 +144,10 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 
 	enrollRequest := caapi.EnrollmentRequest{
 		CAConfig:     caConfig,
-		EnrollmentID: "testuser1234",
+		EnrollmentID: userID,
 		Secret:       userSecret,
 		CSRInfo: caapi.CSRInfo{
-			CN: "testuser1234",
+			CN: userID,
 			Names: []caapi.Name{
 				{
 					C:  "ES",
@@ -140,7 +157,7 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 					OU: "client",
 				},
 			},
-			Hosts: []string{"localhost", "testuser1234.bsc.dt4h.com"},
+			Hosts: []string{"localhost", userID + ".bsc.dt4h.com"},
 		},
 	}
 
