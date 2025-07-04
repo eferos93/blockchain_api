@@ -35,3 +35,12 @@ type UserAttributes struct {
 type UpdateUserProfileRequest struct {
 	Attributes UserAttributes `json:"attributes"`
 }
+
+type UserProfileResponse struct {
+	ID         string         `json:"id"`
+	Username   string         `json:"username"`
+	Email      string         `json:"email"`
+	FirstName  string         `json:"firstName"`
+	LastName   string         `json:"lastName"`
+	Attributes UserAttributes `json:"attributes"`
+}

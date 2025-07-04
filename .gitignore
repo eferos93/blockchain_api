@@ -26,3 +26,4 @@ go.work.sum
 
 identities/
 secure-keystore/
+keycloak/curls.txt
