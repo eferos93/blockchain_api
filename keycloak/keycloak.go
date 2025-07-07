@@ -63,7 +63,7 @@ func GetVAToken(username, password string) (*VATokenResponse, error) {
 	return &tokenResp, nil
 }
 
-func ExchangeForCAToken(vaToken string) (*VATokenResponse, error) {
+func ExchangeForCAToken(vaToken string) (*CATokenResponse, error) {
 	req, err := http.NewRequest("POST", keycloackURL, nil)
 	if err != nil {
 		return nil, err
@@ -91,7 +91,7 @@ func ExchangeForCAToken(vaToken string) (*VATokenResponse, error) {
 		return nil, fmt.Errorf("failed to exchange token: %s", resp.Status)
 	}
 
-	var tokenResp VATokenResponse
+	var tokenResp CATokenResponse
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
 		return nil, err
 	}
@@ -99,7 +99,7 @@ func ExchangeForCAToken(vaToken string) (*VATokenResponse, error) {
 	return &tokenResp, nil
 }
 
-func GetCATokenFromCredentials(username, password string) (*VATokenResponse, error) {
+func GetCATokenFromCredentials(username, password string) (*CATokenResponse, error) {
 	vaToken, err := GetVAToken(username, password)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get VA token: %w", err)

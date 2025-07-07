@@ -8,11 +8,14 @@ type VATokenRequest struct {
 }
 
 type VATokenResponse struct {
-	AccessToken     string `json:"accessToken" form:"access_token"`
-	TokenType       string `json:"tokenType" form:"token_type"`
-	NotBeforePolicy int64  `json:"notBeforePolicy" form:"not-before-policy"`
-	SessionState    string `json:"sessionState" form:"session_state"`
-	Scope           string `json:"scope" form:"scope"`
+	AccessToken      string `json:"accessToken" form:"access_token"`
+	ExpiresIn        int64  `json:"expiresIn" form:"expires_in"`
+	RefreshExpiresIn int64  `json:"refreshExpiresIn" form:"refresh_expires_in"`
+	RefreshToken     string `json:"refreshToken" form:"refresh_token"`
+	TokenType        string `json:"tokenType" form:"token_type"`
+	NotBeforePolicy  int64  `json:"notBeforePolicy" form:"not-before-policy"`
+	SessionState     string `json:"sessionState" form:"session_state"`
+	Scope            string `json:"scope" form:"scope"`
 }
 
 type CATokenRequest struct {
@@ -21,6 +24,17 @@ type CATokenRequest struct {
 	GrantType          string `json:"grantType" form:"grant_type"`
 	SubjectToken       string `json:"subjectToken" form:"subject_token"`
 	RequestedTokenType string `json:"requestedTokenType" form:"requested_token_type"`
+}
+
+type CATokenResponse struct {
+	AccessToken      string `json:"accessToken" form:"access_token"`
+	ExpiresIn        int64  `json:"expiresIn" form:"expires_in"`
+	RefreshExpiresIn int64  `json:"refreshExpiresIn" form:"refresh_expires_in"`
+	TokenType        string `json:"tokenType" form:"token_type"`
+	IDToken          string `json:"idToken" form:"id_token"`
+	NotBeforePolicy  int64  `json:"notBeforePolicy" form:"not-before-policy"`
+	SessionState     string `json:"sessionState" form:"session_state"`
+	Scope            string `json:"scope" form:"scope"`
 }
 
 type UserAttributes struct {
