@@ -16,6 +16,8 @@ func TestGetVAToken(t *testing.T) {
 		t.Fatalf("Failed to get access token: %v", err)
 	}
 
+	t.Logf("Response: %+v", token)
+
 	if token.AccessToken == "" {
 		t.Fatal("Expected non-empty access token")
 	}

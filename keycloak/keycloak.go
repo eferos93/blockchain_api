@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -30,21 +31,21 @@ const (
 )
 
 func GetVAToken(username, password string) (*VATokenResponse, error) {
-	req, err := http.NewRequest("POST", keycloackURL, nil)
-	if err != nil {
-		return nil, err
-	}
-
 	data := url.Values{
 		"client_id":  {vaClientID},
 		"username":   {username},
 		"password":   {password},
-		"grant_type": {"password"},
+		"grant_type": {grantTypePassword}, // Use the constant here too
 	}
 
-	req.PostForm = data
+	// Create request with encoded form data in the body
+	req, err := http.NewRequest("POST", keycloackURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, err
+	}
+
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	// req.Header.Set("Accept", "application/json")
+	req.Header.Set("Accept", "application/json")
 
 	resp, err := keycloackClient.Do(req)
 	if err != nil {
