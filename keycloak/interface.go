@@ -38,23 +38,19 @@ type CATokenResponse struct {
 }
 
 type UserAttributes struct {
-	GivenName   string `json:"given_name"`
-	FamilyName  string `json:"family_name"`
-	Institution string `json:"institution"`
-	PublicKey   string `json:"pbk"`  //base64
-	Certificate string `json:"pkix"` //base64
-	BcSecret    string `json:"bc_secret"`
-}
-
-type UpdateUserProfileRequest struct {
-	Attributes UserAttributes `json:"attributes"`
+	GivenName   []string `json:"given_name"`
+	FamilyName  []string `json:"family_name"`
+	Institution []string `json:"institution"`
+	BcSecret    []string `json:"bcsecret"`
 }
 
 type UserProfileResponse struct {
 	ID         string         `json:"id"`
 	Username   string         `json:"username"`
 	Email      string         `json:"email"`
-	FirstName  string         `json:"firstName"`
-	LastName   string         `json:"lastName"`
+	Attributes UserAttributes `json:"attributes"`
+}
+
+type UpdateUserProfileRequest struct {
 	Attributes UserAttributes `json:"attributes"`
 }

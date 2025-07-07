@@ -19,13 +19,14 @@ var keycloackClient *http.Client = &http.Client{
 }
 
 const (
-	keycloackURL                  = "https://inb.bsc.es/auth/realms/datatools4heart/protocol/openid-connect/token"
-	keycloakUserInfoURL           = "https://inb.bsc.es/auth/realms/datatools4heart/account/"
-	vaClientID                    = "va-webapp"
-	caClientID                    = "dt4h-ca"
-	caClientSecret                = "ZTZqz6wBXVV9wm8xtBkiEQEOPL9JGj5U"
-	grantTypeTokenExchange        = "urn:ietf:params:oauth:grant-type:token-exchange"
-	requestedTokenTypeAccessToken = "urn:ietf:params:oauth:token-type:access_token"
+	keycloackURL                  string = "https://inb.bsc.es/auth/realms/datatools4heart/protocol/openid-connect/token"
+	keycloakUserInfoURL           string = "https://inb.bsc.es/auth/realms/datatools4heart/account/"
+	vaClientID                    string = "va-webapp"
+	caClientID                    string = "dt4h-ca"
+	caClientSecret                string = "ZTZqz6wBXVV9wm8xtBkiEQEOPL9JGj5U"
+	grantTypePassword             string = "password"
+	grantTypeTokenExchange        string = "urn:ietf:params:oauth:grant-type:token-exchange"
+	requestedTokenTypeAccessToken string = "urn:ietf:params:oauth:token-type:access_token"
 )
 
 func GetVAToken(username, password string) (*VATokenResponse, error) {
@@ -43,7 +44,7 @@ func GetVAToken(username, password string) (*VATokenResponse, error) {
 
 	req.PostForm = data
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Accept", "application/json")
+	// req.Header.Set("Accept", "application/json")
 
 	resp, err := keycloackClient.Do(req)
 	if err != nil {
@@ -133,9 +134,22 @@ func GetUserProfileData(token string) (*UserProfileResponse, error) {
 		return nil, fmt.Errorf("failed to get user profile: %s", resp.Status)
 	}
 
-	var profile UserProfileResponse
-	if err := json.NewDecoder(resp.Body).Decode(&profile); err != nil {
+	// First decode to a generic map
+	var rawResponse map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&rawResponse); err != nil {
 		return nil, err
+	}
+
+	var profile UserProfileResponse = UserProfileResponse{
+		ID:       rawResponse["id"].(string),
+		Username: rawResponse["username"].(string),
+		Email:    rawResponse["email"].(string),
+		Attributes: UserAttributes{
+			GivenName:   rawResponse["attributes"].(map[string]any)["given_name"].([]string),
+			FamilyName:  rawResponse["attributes"].(map[string]any)["family_name"].([]string),
+			Institution: rawResponse["attributes"].(map[string]any)["institution"].([]string),
+			BcSecret:    rawResponse["attributes"].(map[string]any)["bcsecret"].([]string),
+		},
 	}
 
 	return &profile, nil
