@@ -66,17 +66,17 @@ func GetVAToken(username, password string) (*VATokenResponse, error) {
 }
 
 func ExchangeForCAToken(vaToken string) (*CATokenResponse, error) {
-	req, err := http.NewRequest("POST", keycloackURL, nil)
-	if err != nil {
-		return nil, err
-	}
-
 	data := url.Values{
 		"client_id":            {caClientID},
 		"client_secret":        {caClientSecret},
 		"grant_type":           {grantTypeTokenExchange},
 		"subject_token":        {vaToken},
 		"requested_token_type": {requestedTokenTypeAccessToken},
+	}
+
+	req, err := http.NewRequest("POST", keycloackURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, err
 	}
 
 	req.PostForm = data
@@ -146,10 +146,10 @@ func GetUserProfileData(token string) (*UserProfileResponse, error) {
 		Username: rawResponse["username"].(string),
 		Email:    rawResponse["email"].(string),
 		Attributes: UserAttributes{
-			GivenName:   rawResponse["attributes"].(map[string]any)["given_name"].([]string),
-			FamilyName:  rawResponse["attributes"].(map[string]any)["family_name"].([]string),
-			Institution: rawResponse["attributes"].(map[string]any)["institution"].([]string),
-			BcSecret:    rawResponse["attributes"].(map[string]any)["bcsecret"].([]string),
+			GivenName:   rawResponse["attributes"].(map[string]any)["given_name"].([]any)[0].(string),
+			FamilyName:  rawResponse["attributes"].(map[string]any)["family_name"].([]any)[0].(string),
+			Institution: rawResponse["attributes"].(map[string]any)["institution"].([]any)[0].(string),
+			BcSecret:    rawResponse["attributes"].(map[string]any)["bcsecret"].([]any)[0].(string),
 		},
 	}
 

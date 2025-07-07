@@ -38,10 +38,10 @@ type CATokenResponse struct {
 }
 
 type UserAttributes struct {
-	GivenName   []string `json:"given_name"`
-	FamilyName  []string `json:"family_name"`
-	Institution []string `json:"institution"`
-	BcSecret    []string `json:"bcsecret"`
+	GivenName   string `json:"given_name"`
+	FamilyName  string `json:"family_name"`
+	Institution string `json:"institution"`
+	BcSecret    string `json:"bcsecret"`
 }
 
 type UserProfileResponse struct {
