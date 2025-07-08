@@ -114,7 +114,7 @@ func getAdminCredentialsFromKeystore(enrollmentID, mspID, userSecret string) ([]
 	var err error
 	if keystore.GlobalKeystore != nil {
 
-		entry, err = keystore.RetrievePrivateKey(enrollmentID, mspID, userSecret)
+		entry, err = keystore.RetrievePrivateKey(enrollmentID, userSecret)
 		if err != nil {
 			return nil, nil, fmt.Errorf("failed to retrieve admin credentials from global keystore: %v", err)
 		}

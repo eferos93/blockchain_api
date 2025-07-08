@@ -1,8 +1,9 @@
 package keystore
 
 import (
-	"net/http"
 	"time"
+
+	"github.com/openbao/openbao/api/v2"
 )
 
 // KeystoreEntry represents a stored private key with metadata
@@ -17,63 +18,26 @@ type KeystoreEntry struct {
 
 // KeystoreManager interface for different storage backends
 type KeystoreManager interface {
-	StoreKey(enrollmentID, mspID string, privateKeyPEM, certificatePEM []byte) error
-	RetrieveKey(storageKey string) (*KeystoreEntry, error)
-	DeleteKey(enrollmentID, mspID, storageKey string) error
-	// ListKeys() ([]string, error)
-	GetSalt(key string) (string, error)
-	StoreSalt(key, salt string) error
+	StoreKey(username, password string, privateKeyPEM, certificatePEM []byte) error
+	RetrieveKey(username, password string) (*KeystoreEntry, error)
+	DeleteKey(username, password string) error
 	Close() error
 	HealthCheck() error
 }
 
-// RemoteBadgerKeystore implements KeystoreManager for remote BadgerDB via HTTP API
-type RemoteBadgerKeystore struct {
-	baseURL    string
-	apiKey     string
-	httpClient *http.Client
+// OpenBaoKeystore implements KeystoreManager using OpenBao as the backend
+type OpenBaoKeystore struct {
+	client     *api.Client
+	secretPath string // Base path for storing secrets (e.g., "secret/blockchain-keys")
+	userPath   string // Path for user management (e.g., "auth/userpass/users/")
+	loginPath  string // Path for login (e.g., "auth/token/login")
 }
 
-// GetSalt implements KeystoreManager.
-func (r *RemoteBadgerKeystore) GetSalt(key string) (string, error) {
-	panic("unimplemented")
-}
-
-// StoreSalt implements KeystoreManager.
-func (r *RemoteBadgerKeystore) StoreSalt(key string, salt string) error {
-	panic("unimplemented")
-}
-
-// RemoteBadgerConfig contains configuration for remote BadgerDB connection
-type RemoteBadgerConfig struct {
-	BaseURL    string `json:"baseUrl"`    // Base URL of the remote BadgerDB API
-	APIKey     string `json:"apiKey"`     // API key for authentication
-	TimeoutSec int    `json:"timeoutSec"` // HTTP timeout in seconds (default: 30)
-}
-
-// GetKeyRequest represents the request payload for remote BadgerDB operations
-type GetKeyRequest struct {
-	StorageKey string `json:"storageKey"`
-}
-
-type StoreKeyRequest struct {
-	StorageKey     string `json:"storageKey"`               // Unique key for the stored entry
-	EnrollmentID   string `json:"enrollmentId,omitempty"`   // User ID
-	MSPID          string `json:"mspId,omitempty"`          // MSP ID
-	PrivateKeyPEM  []byte `json:"privateKeyPem"`            // Encrypted private key PEM
-	CertificatePEM []byte `json:"certificatePem,omitempty"` // Public certificate PEM
-}
-
-type DeleteKeyRequest struct {
-	EnrollmentID string `json:"enrollmentId,omitempty"` // User ID
-	MSPID        string `json:"mspId,omitempty"`        // MSP ID
-	StorageKey   string `json:"storageKey"`             // Unique key for the stored entr
-}
-
-// APIResponse represents the response from remote BadgerDB API
-type APIResponse struct {
-	Success bool           `json:"success"`
-	Message string         `json:"message,omitempty"`
-	Data    *KeystoreEntry `json:"data,omitempty"`
-	Error   string         `json:"error,omitempty"`
+// OpenBaoConfig contains configuration for OpenBao connection
+type OpenBaoConfig struct {
+	Address    string `json:"address"`    // OpenBao server address (e.g., "http://localhost:8200")
+	Token      string `json:"token"`      // Authentication token
+	SecretPath string `json:"secretPath"` // Base path for secrets (e.g., "secret/blockchain-keys")
+	UserPath   string `json:"userPath"`   // Path for user management (e.g., "auth/userpass/users/")
+	LoginPath  string `json:"loginPath"`  // Path for login (e.g., "auth/token/login")
 }

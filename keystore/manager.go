@@ -2,16 +2,11 @@ package keystore
 
 import (
 	"crypto/ecdsa"
-	"crypto/rand"
-	"crypto/sha256"
 	"crypto/x509"
-	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
 	"time"
-
-	"golang.org/x/crypto/pbkdf2"
 )
 
 // GlobalKeystore is the application-wide keystore instance
@@ -44,44 +39,10 @@ func InitializeKeystore(keystoreType, config, masterPassword string) error {
 	return nil
 }
 
-// DeriveStorageKey derives a storage key from user secret without exposing it
-func DeriveStorageKey(enrollmentID, mspID, userSecret string) (string, error) {
-	// Generate or retrieve a salt for this user
-	saltKey := fmt.Sprintf("salt:%s:%s", mspID, enrollmentID)
-
-	salt, err := GlobalKeystore.GetSalt(saltKey)
-	if err != nil {
-		// Generate new salt if doesn't exist
-		saltBytes := make([]byte, 32)
-		if _, err := rand.Read(saltBytes); err != nil {
-			return "", fmt.Errorf("failed to generate salt: %w", err)
-		}
-		salt = hex.EncodeToString(saltBytes)
-
-		// Store salt for future use
-		if err := GlobalKeystore.StoreSalt(saltKey, salt); err != nil {
-			return "", fmt.Errorf("failed to store salt: %w", err)
-		}
-	}
-
-	// Use PBKDF2 to derive a strong key from the user secret
-	combined := fmt.Sprintf("%s:%s:%s", enrollmentID, mspID, userSecret)
-	saltBytes, _ := hex.DecodeString(salt)
-	derivedKey := pbkdf2.Key([]byte(combined), saltBytes, 10000, 32, sha256.New)
-
-	return hex.EncodeToString(derivedKey), nil
-}
-
 // StorePrivateKey stores the results from CA enrollment using user secret
-func StorePrivateKey(enrollmentID, mspID, userSecret string, cert []byte, privateKey *ecdsa.PrivateKey) error {
+func StorePrivateKey(enrollmentID, userSecret string, cert []byte, privateKey *ecdsa.PrivateKey) error {
 	if GlobalKeystore == nil {
 		return fmt.Errorf("keystore not initialized")
-	}
-
-	// Derive storage key from user secret
-	storageKey, err := DeriveStorageKey(enrollmentID, mspID, userSecret)
-	if err != nil {
-		return fmt.Errorf("failed to derive storage key: %w", err)
 	}
 
 	// Convert private key to PEM format
@@ -89,16 +50,7 @@ func StorePrivateKey(enrollmentID, mspID, userSecret string, cert []byte, privat
 	if err != nil {
 		return fmt.Errorf("failed to convert private key to PEM: %w", err)
 	}
-
-	// Hash certificate for logging/audit purposes
-	certHash, err := HashCertificate(cert)
-	if err != nil {
-		fmt.Printf("Warning: failed to hash certificate: %v\n", err)
-	} else {
-		fmt.Printf("Storing certificate with hash: %s for user: %s\n", certHash, enrollmentID)
-	}
-
-	return GlobalKeystore.StoreKey(storageKey, mspID, cert, privateKeyPEM)
+	return GlobalKeystore.StoreKey(enrollmentID, userSecret, cert, privateKeyPEM)
 }
 
 // convertPrivateKeyToPEM converts an ECDSA private key to PEM format
@@ -117,18 +69,12 @@ func convertPrivateKeyToPEM(privateKey *ecdsa.PrivateKey) ([]byte, error) {
 }
 
 // RetrievePrivateKey retrieves private key using user secret
-func RetrievePrivateKey(enrollmentID, mspID, userSecret string) (*KeystoreEntry, error) {
+func RetrievePrivateKey(enrollmentID, userSecret string) (*KeystoreEntry, error) {
 	if GlobalKeystore == nil {
 		return nil, fmt.Errorf("keystore not initialized")
 	}
 
-	// Derive the same storage key
-	storageKey, err := DeriveStorageKey(enrollmentID, mspID, userSecret)
-	if err != nil {
-		return nil, fmt.Errorf("failed to derive storage key: %w", err)
-	}
-
-	return GlobalKeystore.RetrieveKey(storageKey)
+	return GlobalKeystore.RetrieveKey(enrollmentID, userSecret)
 }
 
 // ValidateCertificate validates that a certificate is properly formatted and not expired
@@ -157,7 +103,7 @@ func GetKeyForFabricClient(enrollmentID, mspID, userSecret string) (certPEM []by
 		return nil, nil, fmt.Errorf("keystore not initialized")
 	}
 
-	entry, err := RetrievePrivateKey(enrollmentID, mspID, userSecret)
+	entry, err := RetrievePrivateKey(enrollmentID, userSecret)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to retrieve key: %w", err)
 	}
@@ -172,15 +118,4 @@ func GetKeyForFabricClient(enrollmentID, mspID, userSecret string) (certPEM []by
 	keyPEM = []byte(entry.PrivateKey)
 
 	return certPEM, keyPEM, nil
-}
-
-// HashCertificate creates a SHA256 hash of the certificate for integrity verification
-func HashCertificate(certPEM []byte) (string, error) {
-	block, _ := pem.Decode(certPEM)
-	if block == nil {
-		return "", fmt.Errorf("invalid PEM certificate")
-	}
-
-	hash := sha256.Sum256(block.Bytes)
-	return hex.EncodeToString(hash[:]), nil
 }

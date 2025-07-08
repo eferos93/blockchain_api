@@ -162,7 +162,7 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Failed to decode certificate from enrollment response", http.StatusInternalServerError)
 			return
 		}
-		if err := keystore.StorePrivateKey(req.EnrollmentID, req.CAConfig.MSPID, req.Secret, certificatePEM, privateKey); err != nil {
+		if err := keystore.StorePrivateKey(req.EnrollmentID, req.Secret, certificatePEM, privateKey); err != nil {
 			log.Printf("Warning: Failed to store enrollment result in keystore: %v", err)
 			// Don't fail the request, just log the warning
 		} else {
