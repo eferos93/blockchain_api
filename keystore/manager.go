@@ -20,26 +20,26 @@ var GlobalKeystore KeystoreManager
 // InitializeKeystore initializes the global keystore
 func InitializeKeystore(keystoreType, config, masterPassword string) error {
 	switch keystoreType {
-	case "remote_badger":
-		// Remote BadgerDB keystore via HTTP API
-		var remoteBadgerConfig RemoteBadgerConfig
-		if err := json.Unmarshal([]byte(config), &remoteBadgerConfig); err != nil {
-			return fmt.Errorf("failed to parse remote BadgerDB config: %w", err)
+	case "openbao":
+		// OpenBao keystore
+		var openbaoConfig OpenBaoConfig
+		if err := json.Unmarshal([]byte(config), &openbaoConfig); err != nil {
+			return fmt.Errorf("failed to parse OpenBao config: %w", err)
 		}
 
-		remoteDB, err := NewRemoteBadgerKeystore(remoteBadgerConfig)
+		openbaoClient, err := NewOpenBaoKeystore(openbaoConfig)
 		if err != nil {
-			return fmt.Errorf("failed to initialize remote BadgerDB keystore: %w", err)
+			return fmt.Errorf("failed to initialize OpenBao keystore: %w", err)
 		}
 
 		// Test connection
-		if err := remoteDB.HealthCheck(); err != nil {
-			return fmt.Errorf("remote BadgerDB health check failed: %w", err)
+		if err := openbaoClient.HealthCheck(); err != nil {
+			return fmt.Errorf("OpenBao health check failed: %w", err)
 		}
 
-		GlobalKeystore = remoteDB
+		GlobalKeystore = openbaoClient
 	default:
-		return fmt.Errorf("unsupported keystore type: %s (only remote_badger is supported)", keystoreType)
+		return fmt.Errorf("unsupported keystore type: %s (supported: openbao, remote_badger)", keystoreType)
 	}
 	return nil
 }

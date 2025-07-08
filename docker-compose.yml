@@ -1,5 +1,34 @@
 version: '3.8'
+
 services:
+  openbao:
+    image: quay.io/openbao/openbao:latest
+    container_name: openbao
+    restart: unless-stopped
+    environment:
+      # Development mode - DO NOT use in production
+      OPENBAO_DEV_ROOT_TOKEN_ID: "myroot"
+      OPENBAO_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+      # For production, use proper configuration
+      # OPENBAO_CONFIG: /openbao/config/openbao.json
+    ports:
+      - "8200:8200"
+    volumes:
+      # For development, data is stored in memory
+      # For production, mount a volume for persistent storage
+      - openbao-data:/openbao/data
+      # - ./openbao/config:/openbao/config:ro
+    cap_add:
+      - IPC_LOCK
+    command: ["openbao", "server", "-dev"]
+    healthcheck:
+      test: ["CMD", "openbao", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - blockchain-api-network
+
   blockchain_api:
     build: .
     env_file:
@@ -7,3 +36,21 @@ services:
     ports:
       - "3000:3000"
     restart: unless-stopped
+    depends_on:
+      openbao:
+        condition: service_healthy
+    environment:
+      # Add OpenBao configuration
+      OPENBAO_ADDR: "http://openbao:8200"
+      OPENBAO_TOKEN: "myroot"
+      OPENBAO_SECRET_PATH: "secret/blockchain-keys"
+    networks:
+      - blockchain-api-network
+
+volumes:
+  openbao-data:
+    driver: local
+
+networks:
+  blockchain-api-network:
+    driver: bridge
