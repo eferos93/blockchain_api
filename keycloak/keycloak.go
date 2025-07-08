@@ -155,3 +155,31 @@ func GetUserProfileData(token string) (*UserProfileResponse, error) {
 
 	return &profile, nil
 }
+
+func PutUserProfileData(token string, newAttributes *UpdateUserProfileRequest) error {
+	data, err := json.Marshal(newAttributes)
+	if err != nil {
+		return fmt.Errorf("failed to marshal profile data: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", keycloakUserInfoURL, strings.NewReader(string(data)))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := keycloackClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to update user profile: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("failed to update user profile: %s", resp.Status)
+	}
+
+	return nil
+}
