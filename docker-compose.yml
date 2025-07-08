@@ -43,7 +43,7 @@ services:
       # Add OpenBao configuration
       OPENBAO_ADDR: "http://openbao:8200"
       OPENBAO_TOKEN: "myroot"
-      OPENBAO_SECRET_PATH: "secret/blockchain-keys"
+      OPENBAO_SECRET_PATH: "blockchain-keys/"
     networks:
       - blockchain-api-network
 
