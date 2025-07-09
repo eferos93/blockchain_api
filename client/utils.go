@@ -112,7 +112,7 @@ func (setup OrgSetup) newIdentity(userSecret []byte) (*identity.X509Identity, er
 	var certficatePEM []byte
 	var err error
 
-	if setup.UseKeystore && setup.EnrollmentID != "" {
+	if setup.CertPath == "" && setup.KeyPath == "" && setup.TLSCertPath == "" {
 		// Load from keystore
 		certficatePEM, _, err = keystore.GetKeyForFabricClient(setup.EnrollmentID, setup.MSPID, string(userSecret))
 		if err != nil {
@@ -141,12 +141,13 @@ func (setup OrgSetup) newSign(userSecret []byte) (identity.Sign, error) {
 	var privateKeyPEM []byte
 	var err error
 
-	if setup.UseKeystore && setup.EnrollmentID != "" {
+	if setup.KeyPath == "" && setup.CertPath == "" && setup.TLSCertPath == "" {
 		// Load from keystore
 		_, privateKeyPEM, err = keystore.GetKeyForFabricClient(setup.EnrollmentID, setup.MSPID, string(userSecret))
 		if err != nil {
 			return nil, fmt.Errorf("failed to get key from keystore: %w", err)
 		}
+
 	} else {
 		// Load from file system
 		files, err := os.ReadDir(setup.KeyPath)
@@ -154,6 +155,7 @@ func (setup OrgSetup) newSign(userSecret []byte) (identity.Sign, error) {
 			return nil, fmt.Errorf("failed to read private key directory: %w", err)
 		}
 		privateKeyPEM, err = os.ReadFile(path.Join(setup.KeyPath, files[0].Name()))
+
 	}
 
 	privateKey, err := identity.PrivateKeyFromPEM(privateKeyPEM)
