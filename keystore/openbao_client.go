@@ -50,7 +50,7 @@ func NewOpenBaoKeystore(config OpenBaoConfig) (*OpenBaoKeystore, error) {
 }
 
 // StoreKey stores an encrypted private key in OpenBao
-func (o *OpenBaoKeystore) StoreKey(username, password string, privateKeyPEM, certificatePEM []byte) error {
+func (o *OpenBaoKeystore) StoreKey(username, password string, privateKeyPEM, certificatePEM, tlsCertificatePEM []byte) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -60,10 +60,11 @@ func (o *OpenBaoKeystore) StoreKey(username, password string, privateKeyPEM, cer
 	}
 	// Prepare the secret data
 	secretData := map[string]any{
-		"enrollmentId": username,
-		"privateKey":   base64.StdEncoding.EncodeToString(privateKeyPEM),
-		"certificate":  base64.StdEncoding.EncodeToString(certificatePEM),
-		"createdAt":    time.Now().Format(time.RFC3339),
+		"enrollmentId":   username,
+		"privateKey":     base64.StdEncoding.EncodeToString(privateKeyPEM),
+		"certificate":    base64.StdEncoding.EncodeToString(certificatePEM),
+		"tlsCertificate": base64.StdEncoding.EncodeToString(tlsCertificatePEM),
+		"createdAt":      time.Now().Format(time.RFC3339),
 	}
 
 	_, err = o.client.KVv2("kv").Put(ctx, o.secretPath+username, secretData)
@@ -96,6 +97,7 @@ func (o *OpenBaoKeystore) RetrieveKey(username, password string) (*KeystoreEntry
 
 	privateKeyPEM, _ := base64.StdEncoding.DecodeString(secret.Data["privateKey"].(string))
 	certificatePEM, _ := base64.StdEncoding.DecodeString(secret.Data["certificate"].(string))
+	tlsCertificatePEM, _ := base64.StdEncoding.DecodeString(secret.Data["tlsCertificate"].(string))
 
 	// ✅ Fixed: Parse the time string properly
 	var createdAt time.Time
@@ -104,10 +106,11 @@ func (o *OpenBaoKeystore) RetrieveKey(username, password string) (*KeystoreEntry
 	}
 
 	entry := &KeystoreEntry{
-		EnrollmentID: username,
-		PrivateKey:   privateKeyPEM,
-		Certificate:  certificatePEM,
-		CreatedAt:    createdAt,
+		EnrollmentID:   username,
+		PrivateKey:     privateKeyPEM,
+		Certificate:    certificatePEM,
+		TLSCertificate: tlsCertificatePEM,
+		CreatedAt:      createdAt,
 	}
 
 	return entry, nil

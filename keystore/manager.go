@@ -40,7 +40,7 @@ func InitializeKeystore(keystoreType, config, masterPassword string) error {
 }
 
 // StorePrivateKey stores the results from CA enrollment using user secret
-func StorePrivateKey(enrollmentID, userSecret string, cert []byte, privateKey *ecdsa.PrivateKey) error {
+func StorePrivateKey(enrollmentID, userSecret string, cert, tlsCert []byte, privateKey *ecdsa.PrivateKey) error {
 	if GlobalKeystore == nil {
 		return fmt.Errorf("keystore not initialized")
 	}
@@ -50,7 +50,7 @@ func StorePrivateKey(enrollmentID, userSecret string, cert []byte, privateKey *e
 	if err != nil {
 		return fmt.Errorf("failed to convert private key to PEM: %w", err)
 	}
-	return GlobalKeystore.StoreKey(enrollmentID, userSecret, cert, privateKeyPEM)
+	return GlobalKeystore.StoreKey(enrollmentID, userSecret, cert, privateKeyPEM, tlsCert)
 }
 
 // convertPrivateKeyToPEM converts an ECDSA private key to PEM format
