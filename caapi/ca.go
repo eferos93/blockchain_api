@@ -10,11 +10,38 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"testing"
 
 	"github.com/hyperledger/fabric-ca/api"
 	"github.com/hyperledger/fabric-lib-go/bccsp/factory"
 )
+
+var FabricCAConfig CAConfig
+var TLSCAConfig CAConfig
+
+func init() {
+	FabricCAConfig = CAConfig{
+		CAURL:   getEnvWithDefault("FABRIC_CA_URL", "http://localhost:10055"),
+		CAName:  getEnvWithDefault("FABRIC_CA_NAME", "ca-bsc"),
+		MSPID:   getEnvWithDefault("FABRIC_CA_MSPID", "BscMSP"),
+		SkipTLS: getEnvWithDefault("FABRIC_CA_SKIP_TLS", "false") == "true",
+	}
+	TLSCAConfig = CAConfig{
+		CAURL:   getEnvWithDefault("TLS_CA_URL", "http://localhost:10054"),
+		CAName:  getEnvWithDefault("TLS_CA_NAME", "tlsca-bsc"),
+		MSPID:   getEnvWithDefault("TLS_CA_MSPID", "BscMSP"),
+		SkipTLS: getEnvWithDefault("TLS_CA_SKIP_TLS", "false") == "true",
+	}
+}
+
+func getEnvWithDefault(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}
 
 // Handler for /fabricCA/info - Get CA information
 func InfoHandler(w http.ResponseWriter, r *http.Request) {
