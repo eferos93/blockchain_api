@@ -2,14 +2,19 @@ package caapi
 
 import (
 	"blockchain-api/keystore"
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -19,10 +24,91 @@ import (
 	"github.com/hyperledger/fabric-lib-go/bccsp"
 )
 
+func prepareEnrollRequest(req EnrollmentRequest, w http.ResponseWriter, TLSEnroll bool, csrPEM string) ([]byte, error) {
+	enrollReq := EnrollmentRequestREST{}
+	var err error
+
+	// Set the CSR in the enrollment request
+	enrollReq.CertificateRequest = csrPEM
+
+	if TLSEnroll {
+		var profile string
+		profile = "tls"
+		enrollReq.Profile = &profile
+	}
+
+	reqBody, err := json.Marshal(enrollReq)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to marshal enrollment request: %v", err)
+	}
+	return reqBody, nil
+}
+
+func parseResponse(EnrollBody []byte, w http.ResponseWriter) (map[string]any, []byte, bool) {
+	var enrollResp map[string]any
+	var certificatePEM []byte
+	var err error
+
+	if err := json.Unmarshal(EnrollBody, &enrollResp); err != nil {
+		http.Error(w, "Failed to parse enrollment response: "+err.Error(), http.StatusInternalServerError)
+		return nil, nil, true
+	}
+	// Store the enrolled identity in keystore if enrollment was successful
+	if result, ok := enrollResp["result"].(map[string]any); ok {
+		certificatePEM, err = base64.StdEncoding.DecodeString(result["Cert"].(string))
+		if err != nil {
+			http.Error(w, "Failed to decode certificate from enrollment response", http.StatusInternalServerError)
+			return nil, nil, true
+		}
+	}
+	return enrollResp, certificatePEM, false
+}
+
+func sendEnrollRequest(enrollURL string, reqBody []byte, w http.ResponseWriter, req EnrollmentRequest) ([]byte, bool) {
+	httpReq, err := http.NewRequest("POST", enrollURL, bytes.NewBuffer(reqBody))
+	if err != nil {
+		http.Error(w, "Failed to create request: "+err.Error(), http.StatusInternalServerError)
+		return nil, true
+	}
+
+	// Set Content-Type and Authorization headers
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.SetBasicAuth(req.EnrollmentID, req.Secret)
+
+	resp, err := CAClient.Do(httpReq)
+	if err != nil {
+		log.Printf("Failed to enroll identity: %v", err)
+		http.Error(w, "Failed to connect to CA server: "+err.Error(), http.StatusInternalServerError)
+		return nil, true
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		http.Error(w, "Failed to read CA response: "+err.Error(), http.StatusInternalServerError)
+		return nil, true
+	}
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		http.Error(w, fmt.Sprintf("Enrollment failed: %s", string(body)), resp.StatusCode)
+		return nil, true
+	}
+	return body, false
+}
+
+func getEnvWithDefault(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	return value
+}
+
 // createHTTPClient creates an HTTP client with optional TLS configuration
 func createHTTPClient(config CAConfig) *http.Client {
 	transport := &http.Transport{}
 
+	// TODO: Add support for custom CA certificates if needed
 	if config.SkipTLS {
 		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}

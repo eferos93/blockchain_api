@@ -75,20 +75,12 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 	// Combined test for register and enroll flow
 	// This test follows the proper sequence: register -> enroll
 
-	caConfig := caapi.CAConfig{
-		CAURL:   "https://localhost:10055",
-		CAName:  "ca-bsc",
-		MSPID:   "BscMSP",
-		SkipTLS: true,
-	}
-
 	userID := generateTestUserID()
 	userPW := userID + "pw"
 	// Step 1: Register a new user
 	t.Log("=== Step 1: Registering new user ===")
 
 	registerRequest := caapi.RegistrationRequest{
-		CAConfig: caConfig,
 		AdminIdentity: caapi.AdminIdentity{
 			EnrollmentID: "registrar0",
 			Secret:       "registrarpw",
@@ -143,7 +135,6 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 	t.Log("=== Step 2: Enrolling the registered user ===")
 
 	enrollRequest := caapi.EnrollmentRequest{
-		CAConfig:     caConfig,
 		EnrollmentID: userID,
 		Secret:       userSecret,
 		CSRInfo: caapi.CSRInfo{
