@@ -24,6 +24,8 @@ import (
 	"github.com/hyperledger/fabric-lib-go/bccsp"
 )
 
+var profile string = "tls"
+
 func prepareEnrollRequest(req EnrollmentRequest, w http.ResponseWriter, TLSEnroll bool, csrPEM string) ([]byte, error) {
 	enrollReq := EnrollmentRequestREST{}
 	var err error
@@ -32,8 +34,6 @@ func prepareEnrollRequest(req EnrollmentRequest, w http.ResponseWriter, TLSEnrol
 	enrollReq.CertificateRequest = csrPEM
 
 	if TLSEnroll {
-		var profile string
-		profile = "tls"
 		enrollReq.Profile = &profile
 	}
 

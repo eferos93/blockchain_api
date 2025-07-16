@@ -20,15 +20,15 @@ func NewOpenBaoKeystore(config OpenBaoConfig) (*OpenBaoKeystore, error) {
 	}
 
 	if config.SecretPath == "" {
-		config.SecretPath = "blockchain-keys/" // ✅ Correct path for KV v2
+		config.SecretPath = "blockchain-keys/"
 	}
 
 	if config.UserPath == "" {
-		config.UserPath = "auth/userpass/users/" // ✅ Correct
+		config.UserPath = "auth/userpass/users/"
 	}
 
 	if config.LoginPath == "" {
-		config.LoginPath = "auth/userpass/login/" // ✅ Fixed path
+		config.LoginPath = "auth/userpass/login/"
 	}
 
 	clientConfig := api.DefaultConfig()
