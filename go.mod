@@ -12,10 +12,9 @@ require (
 	github.com/hyperledger/fabric-lib-go v1.1.2
 	github.com/openbao/openbao/api/v2 v2.3.1
 	google.golang.org/grpc v1.73.0
-
 )
 
-require golang.org/x/crypto v0.39.0
+require golang.org/x/crypto v0.39.0 // indirect
 
 require (
 	github.com/IBM/idemix v0.0.2-0.20231011101252-a4feda90f3f7 // indirect
