@@ -64,28 +64,6 @@ services:
       - distributed
       - all
 
-  openbao-test:
-    <<: *openbao-template
-    container_name: openbao-test
-    ports:
-      - "8203:8200"
-    volumes:
-      - openbao-test-data:/openbao/data
-      - ./identities:/identities:ro
-      - ./scripts:/scripts:ro
-    command: ["/scripts/openbao_test_startup.sh"]
-    environment:
-      # Override template environment for test container
-      OPENBAO_DEV_ROOT_TOKEN_ID: "myroot"
-      OPENBAO_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
-      OPENBAO_ADDR: "http://localhost:8200"
-      OPENBAO_TOKEN: "myroot"
-      IDENTITIES_PATH: "/identities"
-      SECRET_BASE_PATH: "blockchain-keys"
-    profiles:
-      - test
-      - all
-
   # Blockchain API services for each organization
   blockchain-api-athena:
     <<: *blockchain-api-template
@@ -159,6 +137,28 @@ services:
       ORG_NAME: "test"
       FABRIC_CA_URL: "${TEST_FABRIC_CA_URL}"
       TLS_CA_URL: "${TEST_TLS_CA_URL}"
+    profiles:
+      - test
+      - all
+
+  openbao-test:
+    <<: *openbao-template
+    container_name: openbao-test
+    ports:
+      - "8203:8200"
+    volumes:
+      - openbao-test-data:/openbao/data
+      - ./identities:/identities:ro
+      - ./scripts:/scripts:ro
+    command: ["/scripts/openbao_test_startup.sh"]
+    environment:
+      # Override template environment for test container
+      OPENBAO_DEV_ROOT_TOKEN_ID: "myroot"
+      OPENBAO_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+      OPENBAO_ADDR: "http://localhost:8200"
+      OPENBAO_TOKEN: "myroot"
+      IDENTITIES_PATH: "/identities"
+      SECRET_BASE_PATH: "blockchain-keys"
     profiles:
       - test
       - all
