@@ -38,6 +38,9 @@ services:
       - "8200:8200"
     volumes:
       - openbao-athena-data:/openbao/data
+    profiles:
+      - distributed
+      - all
 
   openbao-ub:
     <<: *openbao-template
@@ -46,6 +49,9 @@ services:
       - "8201:8200"
     volumes:
       - openbao-ub-data:/openbao/data
+    profiles:
+      - distributed
+      - all
 
   openbao-bsc:
     <<: *openbao-template
@@ -54,6 +60,9 @@ services:
       - "8202:8200"
     volumes:
       - openbao-bsc-data:/openbao/data
+    profiles:
+      - distributed
+      - all
 
   openbao-test:
     <<: *openbao-template
@@ -73,6 +82,9 @@ services:
       OPENBAO_TOKEN: "myroot"
       IDENTITIES_PATH: "/identities"
       SECRET_BASE_PATH: "blockchain-keys"
+    profiles:
+      - test
+      - all
 
   # Blockchain API services for each organization
   blockchain-api-athena:
@@ -90,6 +102,9 @@ services:
       ORG_NAME: "athena"
       FABRIC_CA_URL: "${ATHENA_FABRIC_CA_URL}"
       TLS_CA_URL: "${ATHENA_TLS_CA_URL}"
+    profiles:
+      - distributed
+      - all
 
   blockchain-api-ub:
     <<: *blockchain-api-template
@@ -106,6 +121,9 @@ services:
       ORG_NAME: "ub"
       FABRIC_CA_URL: "${UB_FABRIC_CA_URL}"
       TLS_CA_URL: "${UB_TLS_CA_URL}"
+    profiles:
+      - distributed
+      - all
 
   blockchain-api-bsc:
     <<: *blockchain-api-template
@@ -122,6 +140,9 @@ services:
       ORG_NAME: "bsc"
       FABRIC_CA_URL: "${BSC_FABRIC_CA_URL}"
       TLS_CA_URL: "${BSC_TLS_CA_URL}"
+    profiles:
+      - distributed
+      - all
 
   blockchain-api-test:
     <<: *blockchain-api-template
@@ -138,6 +159,9 @@ services:
       ORG_NAME: "test"
       FABRIC_CA_URL: "${TEST_FABRIC_CA_URL}"
       TLS_CA_URL: "${TEST_TLS_CA_URL}"
+    profiles:
+      - test
+      - all
 
 volumes:
   openbao-athena-data:
