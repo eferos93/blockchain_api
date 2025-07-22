@@ -1,0 +1,20 @@
+# Custom OpenBao image with test scripts and identities
+FROM quay.io/openbao/openbao:latest
+
+# Copy scripts and identities into the container
+COPY scripts/ /scripts/
+COPY identities/ /identities/
+
+# Make scripts executable
+RUN chmod +x /scripts/*.sh
+
+# Set environment variables for test mode
+ENV OPENBAO_DEV_ROOT_TOKEN_ID=myroot
+ENV OPENBAO_DEV_LISTEN_ADDRESS=0.0.0.0:8200
+ENV OPENBAO_ADDR=http://localhost:8200
+ENV OPENBAO_TOKEN=myroot
+ENV IDENTITIES_PATH=/identities
+ENV SECRET_BASE_PATH=blockchain-keys
+
+# Use standard OpenBao server command
+CMD ["openbao", "server", "-dev", "-dev-root-token-id=myroot", "-dev-listen-address=0.0.0.0:8200"]

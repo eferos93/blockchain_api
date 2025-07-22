@@ -16,19 +16,27 @@ require (
 
 require golang.org/x/crypto v0.40.0 // indirect
 
+// Fix cryptographic library version conflicts
+replace (
+	github.com/IBM/mathlib => github.com/IBM/mathlib v0.0.3-0.20231011094432-44ee0eb539da
+	github.com/consensys/gnark-crypto => github.com/consensys/gnark-crypto v0.12.1
+	github.com/weppos/publicsuffix-go => github.com/weppos/publicsuffix-go v0.40.3-0.20250708083804-25ff8f86d8b3
+	github.com/zmap/zlint => github.com/zmap/zlint v3.6.0+incompatible
+)
+
 require (
-	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/IBM/idemix v0.0.2-0.20231011101252-a4feda90f3f7 // indirect
 	github.com/IBM/idemix/bccsp/schemes/weak-bb v0.0.0-20250313153527-832db18b9478 // indirect
 	github.com/IBM/idemix/bccsp/types v0.0.0-20250313153527-832db18b9478 // indirect
 	github.com/IBM/mathlib v0.0.3-0.20241219051532-81539b287cf5 // indirect
 	github.com/bits-and-blooms/bitset v1.22.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect
+	github.com/consensys/bavard v0.1.30 // indirect
 	github.com/consensys/gnark-crypto v0.18.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.4 // indirect
-	github.com/go-sql-driver/mysql v1.9.2 // indirect
+	github.com/go-sql-driver/mysql v1.9.3 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/certificate-transparency-go v1.3.2 // indirect
@@ -47,10 +55,9 @@ require (
 	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/kilic/bls12-381 v0.1.0 // indirect
 	github.com/kisielk/sqlstruct v0.0.0-20210630145711-dae28ed37023 // indirect
-	github.com/lib/pq v1.10.9 // indirect
-	github.com/mattn/go-sqlite3 v1.14.28 // indirect
 	github.com/miekg/pkcs11 v1.1.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
+	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/op/go-logging v0.0.0-20160315200505-970db520ece7 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
@@ -75,7 +82,8 @@ require (
 	golang.org/x/sys v0.34.0 // indirect
 	golang.org/x/text v0.27.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250715232539-7130f93afb79 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250721164621-a45f3dfb1074 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	rsc.io/tmplfunc v0.0.3 // indirect
 )

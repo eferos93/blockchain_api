@@ -21,7 +21,7 @@ func init() {
 
 func getTestOrgSetup() client.ClientRequestBody {
 	// Use test keys and certs from the identities folder
-	base := filepath.Join("..", "identities", "blockClient", "msp")
+	base := filepath.Join("..", "identities", "bsc", "blockclient", "msp")
 	var orgSetup client.OrgSetup = client.OrgSetup{
 		OrgName:      "bsc",
 		MSPID:        "BscMSP", // casing is important here!!!!

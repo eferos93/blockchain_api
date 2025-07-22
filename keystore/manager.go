@@ -33,8 +33,26 @@ func InitializeKeystore(keystoreType, config, masterPassword string) error {
 		}
 
 		GlobalKeystore = openbaoClient
+	case "file":
+		// File-based encrypted keystore
+		var fileConfig FileKeystoreConfig
+		if err := json.Unmarshal([]byte(config), &fileConfig); err != nil {
+			return fmt.Errorf("failed to parse file keystore config: %w", err)
+		}
+
+		fileClient, err := NewFileKeystore(fileConfig)
+		if err != nil {
+			return fmt.Errorf("failed to initialize file keystore: %w", err)
+		}
+
+		// Test accessibility
+		if err := fileClient.HealthCheck(); err != nil {
+			return fmt.Errorf("file keystore health check failed: %w", err)
+		}
+
+		GlobalKeystore = fileClient
 	default:
-		return fmt.Errorf("unsupported keystore type: %s (supported: openbao, remote_badger)", keystoreType)
+		return fmt.Errorf("unsupported keystore type: %s (supported: openbao, file)", keystoreType)
 	}
 	return nil
 }
