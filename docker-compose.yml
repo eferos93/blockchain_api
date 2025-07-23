@@ -1,9 +1,179 @@
 version: '3.8'
+
+# YAML anchors for reusable service templates
+x-openbao-template: &openbao-template
+  image: quay.io/openbao/openbao:latest
+  restart: unless-stopped
+  environment:
+    # Development mode - DO NOT use in production
+    OPENBAO_DEV_ROOT_TOKEN_ID: "myroot"
+    OPENBAO_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+    # For production, use proper configuration
+    # OPENBAO_CONFIG: /openbao/config/openbao.json
+  cap_add:
+    - IPC_LOCK
+  command: ["openbao", "server", "-dev"]
+  healthcheck:
+    test: ["CMD", "openbao", "status"]
+    interval: 30s
+    timeout: 10s
+    retries: 3
+  networks:
+    - blockchain-api-network
+
+x-blockchain-api-template: &blockchain-api-template
+  build: .
+  env_file:
+    - .env
+  restart: unless-stopped
+  networks:
+    - blockchain-api-network
+
 services:
-  blockchain_api:
-    build: .
-    env_file:
-      - .env
+  # OpenBao services for each organization
+  openbao-athena:
+    <<: *openbao-template
+    container_name: openbao-athena
+    ports:
+      - "8200:8200"
+    volumes:
+      - openbao-athena-data:/openbao/data
+    profiles:
+      - distributed
+      - all
+
+  openbao-ub:
+    <<: *openbao-template
+    container_name: openbao-ub
+    ports:
+      - "8201:8200"
+    volumes:
+      - openbao-ub-data:/openbao/data
+    profiles:
+      - distributed
+      - all
+
+  openbao-bsc:
+    <<: *openbao-template
+    container_name: openbao-bsc
+    ports:
+      - "8202:8200"
+    volumes:
+      - openbao-bsc-data:/openbao/data
+    profiles:
+      - distributed
+      - all
+
+  # Blockchain API services for each organization
+  blockchain-api-athena:
+    <<: *blockchain-api-template
+    container_name: blockchain-api-athena
     ports:
       - "3000:3000"
+    depends_on:
+      openbao-athena:
+        condition: service_healthy
+    environment:
+      OPENBAO_ADDR: "http://openbao-athena:8200"
+      OPENBAO_TOKEN: "myroot"
+      OPENBAO_SECRET_PATH: "blockchain-keys/"
+      ORG_NAME: "athena"
+      FABRIC_CA_URL: "${ATHENA_FABRIC_CA_URL}"
+      TLS_CA_URL: "${ATHENA_TLS_CA_URL}"
+    profiles:
+      - distributed
+      - all
+
+  blockchain-api-ub:
+    <<: *blockchain-api-template
+    container_name: blockchain-api-ub
+    ports:
+      - "3001:3000"
+    depends_on:
+      openbao-ub:
+        condition: service_healthy
+    environment:
+      OPENBAO_ADDR: "http://openbao-ub:8200"
+      OPENBAO_TOKEN: "myroot"
+      OPENBAO_SECRET_PATH: "blockchain-keys/"
+      ORG_NAME: "ub"
+      FABRIC_CA_URL: "${UB_FABRIC_CA_URL}"
+      TLS_CA_URL: "${UB_TLS_CA_URL}"
+    profiles:
+      - distributed
+      - all
+
+  blockchain-api-bsc:
+    <<: *blockchain-api-template
+    container_name: blockchain-api-bsc
+    ports:
+      - "3002:3000"
+    depends_on:
+      openbao-bsc:
+        condition: service_healthy
+    environment:
+      OPENBAO_ADDR: "http://openbao-bsc:8200"
+      OPENBAO_TOKEN: "myroot"
+      OPENBAO_SECRET_PATH: "blockchain-keys/"
+      ORG_NAME: "bsc"
+      FABRIC_CA_URL: "${BSC_FABRIC_CA_URL}"
+      TLS_CA_URL: "${BSC_TLS_CA_URL}"
+    profiles:
+      - distributed
+      - all
+
+  blockchain-api-test:
+    <<: *blockchain-api-template
+    container_name: blockchain-api-test
+    ports:
+      - "3003:3000"
+    depends_on:
+      openbao-test:
+        condition: service_healthy
+    environment:
+      OPENBAO_ADDR: "http://openbao-test:8200"
+      OPENBAO_TOKEN: "myroot"
+      OPENBAO_SECRET_PATH: "blockchain-keys/"
+      ORG_NAME: "test"
+      FABRIC_CA_URL: "${TEST_FABRIC_CA_URL}"
+      TLS_CA_URL: "${TEST_TLS_CA_URL}"
+    profiles:
+      - test
+      - all
+
+  openbao-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.openbao-test
+    container_name: openbao-test
     restart: unless-stopped
+    ports:
+      - "8203:8200"
+    volumes:
+      - openbao-test-data:/openbao/data
+    cap_add:
+      - IPC_LOCK
+    healthcheck:
+      test: ["CMD", "openbao", "status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - blockchain-api-network
+    profiles:
+      - test
+      - all
+
+volumes:
+  openbao-athena-data:
+    driver: local
+  openbao-ub-data:
+    driver: local
+  openbao-bsc-data:
+    driver: local
+  openbao-test-data:
+    driver: local
+
+networks:
+  blockchain-api-network:
+    driver: bridge

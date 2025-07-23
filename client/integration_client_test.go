@@ -2,33 +2,46 @@ package client_test
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"testing"
 
-	"rest-api-go/client"
+	"blockchain-api/client"
 )
 
-func getTestOrgSetup() client.OrgSetup {
+func init() {
+	// Set environment variables for tests
+	os.Setenv("SESSION_AUTH_KEY", "2ae78d6e2a6eb4f722422ae1d8da5c44557ee955da562129e472bebcdff2b3d6")
+	os.Setenv("SESSION_ENC_KEY", "3b0b45871551d858151aa7c1fd808673e455059503ee66aaba63cf128ec4f42c")
+}
+
+func getTestOrgSetup() client.ClientRequestBody {
 	// Use test keys and certs from the identities folder
-	base := "../identities/blockClient/msp"
-	return client.OrgSetup{
+	base := filepath.Join("..", "identities", "bsc", "blockclient", "msp")
+	var orgSetup client.OrgSetup = client.OrgSetup{
 		OrgName:      "bsc",
-		MSPID:        "bscMSP",
+		MSPID:        "BscMSP", // casing is important here!!!!
 		CryptoPath:   base,
-		CertPath:     filepath.Join(base, "signcerts/cert.pem"),
+		CertPath:     filepath.Join(base, "signcerts", "cert.pem"),
 		KeyPath:      filepath.Join(base, "keystore"),
-		TLSCertPath:  filepath.Join(base, "tlscacerts/ca.crt"),
+		TLSCertPath:  filepath.Join(base, "tlscacerts", "ca.crt"),
 		PeerEndpoint: "dns:///localhost:9051",
-		GatewayPeer:  "peer0.bsc.domain.com",
+		GatewayPeer:  "peer0.bsc.dt4h.com",
 	}
+	var body client.ClientRequestBody = client.ClientRequestBody{
+		OrgSetup: orgSetup,
+		Secret:   base64.StdEncoding.EncodeToString([]byte("blockclientpw")),
+	}
+	return body
 }
 
 func TestInitialize(t *testing.T) {
 	org := getTestOrgSetup()
-	_, err := client.Initialize(org)
+	_, err := client.Initialize(org.OrgSetup, org.Secret)
 	if err != nil {
 		t.Fatalf("Failed to initialize OrgSetup: %v", err)
 	}
@@ -42,6 +55,8 @@ func TestClientHandler(t *testing.T) {
 	client.ClientHandler(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Errorf("Expected 200 OK, got %d. Body: %s", rec.Code, rec.Body.String())
+	} else {
+		t.Logf("Client initialized successfully: %s", rec.Body.String())
 	}
 }
 
@@ -80,8 +95,9 @@ func TestInvokeHandlerAfterInit(t *testing.T) {
 	invokeRec := httptest.NewRecorder()
 	client.InvokeHandler(invokeRec, invokeReq)
 	if invokeRec.Code != http.StatusOK {
-		t.Errorf("Expected 200 OK for invoke after init, got %d", invokeRec.Code)
+		t.Errorf("Expected 200 OK for invoke after init, got %d; Message: %s", invokeRec.Code, invokeRec.Body.String())
 	}
+	t.Logf("Invoke Response: %s", invokeRec.Body.String())
 }
 
 func TestQueryHandlerAfterInit(t *testing.T) {
@@ -100,6 +116,7 @@ func TestQueryHandlerAfterInit(t *testing.T) {
 	queryRec := httptest.NewRecorder()
 	client.QueryHandler(queryRec, queryReq)
 	if queryRec.Code != http.StatusOK {
-		t.Errorf("Expected 200 OK for query after init, got %d", queryRec.Code)
+		t.Errorf("Expected 200 OK for query after init, got %d; Message: %s", queryRec.Code, queryRec.Body.String())
 	}
+	t.Logf("Query Response: %s", queryRec.Body.String())
 }
