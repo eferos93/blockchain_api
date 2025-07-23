@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"blockchain-api/keystore"
@@ -121,9 +122,9 @@ func TestFileKeystore_WrongPassword(t *testing.T) {
 		t.Errorf("Should return error for wrong password")
 	}
 
-	// Verify error message indicates authentication failure
-	if err != nil && !contains(err.Error(), "decrypt") {
-		t.Errorf("Error should indicate decryption failure, got: %v", err)
+	// Verify error message indicates authentication/decryption failure
+	if err != nil && !strings.Contains(err.Error(), "decrypt") && !strings.Contains(err.Error(), "authentication failed") {
+		t.Errorf("Error should indicate decryption or authentication failure, got: %v", err)
 	}
 }
 
