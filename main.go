@@ -17,17 +17,18 @@ func main() {
 	// Initialize keystore
 	keystoreType := os.Getenv("KEYSTORE_TYPE")
 	if keystoreType == "" {
-		keystoreType = "file_based" // Default to file-based keystore for tests
+		keystoreType = "file" // Default to file-based keystore for tests
 	}
 
 	keystoreConfig := os.Getenv("KEYSTORE_CONFIG")
 	if keystoreConfig == "" {
-		keystoreConfig = "./identities" // Default path for file-based keystore
+		// Default configuration for file-based keystore
+		keystoreConfig = `{"basePath":"./keystore_data","salt":""}`
 	}
 
 	keystorePassword := os.Getenv("KEYSTORE_PASSWORD")
 	if keystorePassword == "" {
-		log.Fatal("KEYSTORE_PASSWORD environment variable must be set")
+		keystorePassword = "default_master_password" // Default for development
 	}
 
 	if err := keystore.InitializeKeystore(keystoreType, keystoreConfig, keystorePassword); err != nil {
