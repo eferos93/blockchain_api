@@ -26,7 +26,34 @@ import (
 
 var profile string = "tls"
 
-func prepareEnrollRequest(req EnrollmentRequest, w http.ResponseWriter, TLSEnroll bool, csrPEM string) ([]byte, error) {
+func createCAandTLSCARequests(regReqBody []byte, CAURL, TLSCAURL, CAName, TLSCAName string) (*http.Request, *http.Request, error) {
+	CAregisterURL := fmt.Sprintf(CARegisterEndpoint, CAURL)
+	if CAName != "" {
+		CAregisterURL += "?ca=" + CAName
+	}
+
+	TLSCAregisterURL := fmt.Sprintf(CARegisterEndpoint, TLSCAURL)
+	if TLSCAName != "" {
+		TLSCAregisterURL += "?ca=" + TLSCAName
+	}
+
+	// Create registration request with admin certificate
+	CAregHttpReq, err := http.NewRequest("POST", CAregisterURL, bytes.NewBuffer(regReqBody))
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to create registration request: %v", err)
+	}
+
+	TLSCAregHttpReq, err := http.NewRequest("POST", TLSCAregisterURL, bytes.NewBuffer(regReqBody))
+	if err != nil {
+		return nil, nil, fmt.Errorf("Failed to create TLS registration request: %v", err)
+	}
+
+	CAregHttpReq.Header.Set("Content-Type", "application/json")
+	TLSCAregHttpReq.Header.Set("Content-Type", "application/json")
+	return CAregHttpReq, TLSCAregHttpReq, nil
+}
+
+func prepareEnrollRequest(TLSEnroll bool, csrPEM string) ([]byte, error) {
 	enrollReq := EnrollmentRequestREST{}
 	var err error
 
@@ -213,7 +240,7 @@ func getAdminCredentialsFromKeystore(enrollmentID, mspID, userSecret string) ([]
 func loadAdminCredentialsForTest() ([]byte, []byte, error) {
 	// For testing purposes, we can hardcode the admin credentials
 	// In production, this should be retrieved from a secure keystore
-	basePath := filepath.Join("..", "identities", "bscRegistrar", "msp")
+	basePath := filepath.Join("..", "identities", "bsc", "registrar0", "msp")
 	certPath := filepath.Join(basePath, "signcerts", "cert.pem")
 	keyPath := filepath.Join(basePath, "keystore", "key.pem")
 	certPEM, err := os.ReadFile(certPath)
