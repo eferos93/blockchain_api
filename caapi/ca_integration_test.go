@@ -172,7 +172,7 @@ func TestRealCARegisterAndEnrollFlow(t *testing.T) {
 	}
 
 	// Check if we got enrollment result with certificate
-	if result, ok := enrollResponse["result"].(map[string]any); ok {
+	if result, ok := enrollResponse["CAEnrollResp"].(map[string]any)["result"].(map[string]any); ok {
 		t.Logf("Enrollment successful, got result with keys: %v", getKeys(result))
 
 		// Check for certificate in the result

@@ -10,10 +10,8 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"testing"
 
 	"github.com/hyperledger/fabric-ca/api"
-	"github.com/hyperledger/fabric-lib-go/bccsp/factory"
 )
 
 var FabricCAConfig CAConfig
@@ -213,34 +211,39 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Make registration request with admin certificate authorization
-	CAregHttpReq, TLSCAregHttpReq, err := createCAandTLSCARequests(regReqBody, FabricCAConfig.CAURL, TLSCAConfig.CAURL, FabricCAConfig.CAName, TLSCAConfig.CAName)
+	CAregHttpReq, err := prepareGenericRegisterCARequest(regReqBody, FabricCAConfig, req.AdminIdentity.EnrollmentID, req.AdminIdentity.Secret)
 	if err != nil {
-		http.Error(w, "Failed to create registration requests: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to create registration request: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	var adminCert, adminPrivateKey []byte
-	if testing.Testing() {
-		adminCert, adminPrivateKey, err = loadAdminCredentialsForTest()
-	} else {
-		adminCert, adminPrivateKey, err = getAdminCredentialsFromKeystore(req.AdminIdentity.EnrollmentID, FabricCAConfig.MSPID, req.AdminIdentity.Secret)
-	}
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to retrieve admin credentials: %v", err), http.StatusInternalServerError)
-		return
-	}
+	// TLSCAregHttpReq, err := prepareGenericRegisterCARequest(regReqBody, TLSCAConfig, req.AdminIdentity.EnrollmentID, req.AdminIdentity.Secret)
+	// if err != nil {
+	// 	http.Error(w, "Failed to create TLS registration requests: "+err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
 
-	// Create proper Fabric CA authorization token (keeping your existing auth token generation)
-	authToken, err := createFabricCAAuthToken(factory.GetDefault(), CAregHttpReq.Method, CAregHttpReq.URL.RequestURI(), regReqBody, adminCert, adminPrivateKey)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to create authorization token: %v", err), http.StatusInternalServerError)
-		return
-	}
+	// var adminCert, adminPrivateKey []byte
+	// if testing.Testing() {
+	// 	adminCert, adminPrivateKey, err = loadAdminCredentialsForTest()
+	// } else {
+	// 	adminCert, adminPrivateKey, err = getAdminCredentialsFromKeystore(req.AdminIdentity.EnrollmentID, FabricCAConfig.MSPID, req.AdminIdentity.Secret)
+	// }
+	// if err != nil {
+	// 	http.Error(w, fmt.Sprintf("Failed to retrieve admin credentials: %v", err), http.StatusInternalServerError)
+	// 	return
+	// }
 
-	// Set the authorization header with the proper format
-	CAregHttpReq.Header.Set("Authorization", authToken)
-	TLSCAregHttpReq.Header.Set("Authorization", authToken)
+	// // Create proper Fabric CA authorization token (keeping your existing auth token generation)
+	// authToken, err := createFabricCAAuthToken(factory.GetDefault(), CAregHttpReq.Method, CAregHttpReq.URL.RequestURI(), regReqBody, adminCert, adminPrivateKey)
+	// if err != nil {
+	// 	http.Error(w, fmt.Sprintf("Failed to create authorization token: %v", err), http.StatusInternalServerError)
+	// 	return
+	// }
+
+	// // Set the authorization header with the proper format
+	// CAregHttpReq.Header.Set("Authorization", authToken)
+	// TLSCAregHttpReq.Header.Set("Authorization", authToken)
 	CAregResp, err := CAClient.Do(CAregHttpReq)
 	if err != nil {
 		log.Printf("Failed to register identity: %v", err)
@@ -248,18 +251,18 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	TLSCARegResponse, err := TLSCAClient.Do(TLSCAregHttpReq)
-	if err != nil {
-		log.Printf("Failed to register TLS identity: %v", err)
-		http.Error(w, "Failed to connect to TLS CA server", http.StatusInternalServerError)
-		return
-	}
+	// TLSCARegResponse, err := TLSCAClient.Do(TLSCAregHttpReq)
+	// if err != nil {
+	// 	log.Printf("Failed to register TLS identity: %v", err)
+	// 	http.Error(w, "Failed to connect to TLS CA server", http.StatusInternalServerError)
+	// 	return
+	// }
 
 	defer CAregResp.Body.Close()
-	defer TLSCARegResponse.Body.Close()
+	// defer TLSCARegResponse.Body.Close()
 
 	CARespBody, err := io.ReadAll(CAregResp.Body)
-	TLSCARespBody, err := io.ReadAll(TLSCARegResponse.Body)
+	// TLSCARespBody, err := io.ReadAll(TLSCARegResponse.Body)
 	if err != nil {
 		http.Error(w, "Failed to read CA response", http.StatusInternalServerError)
 		return
@@ -270,23 +273,22 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if TLSCARegResponse.StatusCode != http.StatusOK && TLSCARegResponse.StatusCode != http.StatusCreated {
-		http.Error(w, fmt.Sprintf("TLS Registration failed: %s", string(TLSCARespBody)), TLSCARegResponse.StatusCode)
-		return
-	}
+	// if TLSCARegResponse.StatusCode != http.StatusOK && TLSCARegResponse.StatusCode != http.StatusCreated {
+	// 	http.Error(w, fmt.Sprintf("TLS Registration failed: %s", string(TLSCARespBody)), TLSCARegResponse.StatusCode)
+	// 	return
+	// }
 
-	// Parse registration response
 	var CARegisterResp map[string]any
-	var TLSCARegisterResp map[string]any
+	// var TLSCARegisterResp map[string]any
 	if err := json.Unmarshal(CARespBody, &CARegisterResp); err != nil {
 		http.Error(w, "Failed to parse registration response", http.StatusInternalServerError)
 		return
 	}
 
-	if err := json.Unmarshal(TLSCARespBody, &TLSCARegisterResp); err != nil {
-		http.Error(w, "Failed to parse TLS registration response", http.StatusInternalServerError)
-		return
-	}
+	// if err := json.Unmarshal(TLSCARespBody, &TLSCARegisterResp); err != nil {
+	// 	http.Error(w, "Failed to parse TLS registration response", http.StatusInternalServerError)
+	// 	return
+	// }
 
 	// Return success response
 	response := map[string]any{
@@ -294,7 +296,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		"message": "Identity registered successfully",
 		"result": map[string]any{
 			"CA":  CARegisterResp,
-			"TLS": TLSCARegisterResp,
+			"TLS": "", //TLSCARegisterResp,
 		},
 	}
 

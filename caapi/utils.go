@@ -18,39 +18,47 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"testing"
 	"time"
 
 	"github.com/hyperledger/fabric-ca/util"
 	"github.com/hyperledger/fabric-lib-go/bccsp"
+	"github.com/hyperledger/fabric-lib-go/bccsp/factory"
 )
 
 var profile string = "tls"
 
-func createCAandTLSCARequests(regReqBody []byte, CAURL, TLSCAURL, CAName, TLSCAName string) (*http.Request, *http.Request, error) {
-	CAregisterURL := fmt.Sprintf(CARegisterEndpoint, CAURL)
-	if CAName != "" {
-		CAregisterURL += "?ca=" + CAName
-	}
-
-	TLSCAregisterURL := fmt.Sprintf(CARegisterEndpoint, TLSCAURL)
-	if TLSCAName != "" {
-		TLSCAregisterURL += "?ca=" + TLSCAName
+func prepareGenericRegisterCARequest(regReqBody []byte, GenericCAConfig CAConfig, enrollmentID, secret string) (*http.Request, error) {
+	CAregisterURL := fmt.Sprintf(CARegisterEndpoint, GenericCAConfig.CAURL)
+	if GenericCAConfig.CAName != "" {
+		CAregisterURL += "?ca=" + GenericCAConfig.CAName
 	}
 
 	// Create registration request with admin certificate
 	CAregHttpReq, err := http.NewRequest("POST", CAregisterURL, bytes.NewBuffer(regReqBody))
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to create registration request: %v", err)
-	}
-
-	TLSCAregHttpReq, err := http.NewRequest("POST", TLSCAregisterURL, bytes.NewBuffer(regReqBody))
-	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to create TLS registration request: %v", err)
+		return nil, fmt.Errorf("Failed to create registration request: %v", err)
 	}
 
 	CAregHttpReq.Header.Set("Content-Type", "application/json")
-	TLSCAregHttpReq.Header.Set("Content-Type", "application/json")
-	return CAregHttpReq, TLSCAregHttpReq, nil
+	var adminCert, adminPrivateKey []byte
+	if testing.Testing() {
+		adminCert, adminPrivateKey, err = loadAdminCredentialsForTest()
+	} else {
+		adminCert, adminPrivateKey, err = getAdminCredentialsFromKeystore(enrollmentID, FabricCAConfig.MSPID, secret)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("Failed to retrieve admin credentials: %v", err)
+	}
+
+	// Create proper Fabric CA authorization token (keeping your existing auth token generation)
+	authToken, err := createFabricCAAuthToken(factory.GetDefault(), CAregHttpReq.Method, CAregHttpReq.URL.RequestURI(), regReqBody, adminCert, adminPrivateKey)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create authorization token: %v", err)
+	}
+
+	CAregHttpReq.Header.Set("Authorization", authToken)
+	return CAregHttpReq, nil
 }
 
 func prepareEnrollRequest(TLSEnroll bool, csrPEM string) ([]byte, error) {
@@ -155,7 +163,7 @@ func createHTTPClient(config CAConfig) *http.Client {
 				log.Printf("Loaded custom CA certificates from: %s", config.TLSCerts)
 			}
 		}
-		
+
 		transport.TLSClientConfig = tlsConfig
 	}
 
@@ -171,31 +179,31 @@ func createHTTPClient(config CAConfig) *http.Client {
 // - A directory containing multiple PEM files
 func loadCACertificates(certPath string) (*x509.CertPool, error) {
 	caCertPool := x509.NewCertPool()
-	
+
 	// Check if path is a file or directory
 	info, err := os.Stat(certPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to access certificate path %s: %w", certPath, err)
 	}
-	
+
 	if info.IsDir() {
 		// Load all PEM files from directory
 		entries, err := os.ReadDir(certPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read certificate directory %s: %w", certPath, err)
 		}
-		
+
 		for _, entry := range entries {
 			if entry.IsDir() {
 				continue
 			}
-			
+
 			fileName := entry.Name()
 			// Only process .pem, .crt, and .cert files
 			if !isPEMFile(fileName) {
 				continue
 			}
-			
+
 			fullPath := filepath.Join(certPath, fileName)
 			if err := loadSingleCertFile(caCertPool, fullPath); err != nil {
 				log.Printf("Warning: Failed to load certificate from %s: %v", fullPath, err)
@@ -210,7 +218,7 @@ func loadCACertificates(certPath string) (*x509.CertPool, error) {
 		}
 		log.Printf("Loaded CA certificate from: %s", certPath)
 	}
-	
+
 	return caCertPool, nil
 }
 
@@ -220,14 +228,14 @@ func loadSingleCertFile(caCertPool *x509.CertPool, filePath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read certificate file: %w", err)
 	}
-	
+
 	// Parse and add all certificates in the PEM file
 	for {
 		block, rest := pem.Decode(certPEM)
 		if block == nil {
 			break
 		}
-		
+
 		if block.Type == "CERTIFICATE" {
 			cert, err := x509.ParseCertificate(block.Bytes)
 			if err != nil {
@@ -237,10 +245,10 @@ func loadSingleCertFile(caCertPool *x509.CertPool, filePath string) error {
 			}
 			caCertPool.AddCert(cert)
 		}
-		
+
 		certPEM = rest
 	}
-	
+
 	return nil
 }
 
