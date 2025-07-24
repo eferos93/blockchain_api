@@ -164,7 +164,7 @@ services:
       - test
       - all
   blockchain-api-filestore:
-    build: .
+    <<: *blockchain-api-template
     ports:
       - "3000:3000"
     environment:
@@ -176,8 +176,6 @@ services:
     volumes:
       - ./file_keystore_data:/app/keystore_data
       - ./identities:/app/identities:ro  # Read-only mount for reference
-    networks:
-      - blockchain-api-network
     profiles:
       - test-filestore
 
