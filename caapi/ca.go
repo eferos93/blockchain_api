@@ -27,16 +27,18 @@ const (
 
 func init() {
 	FabricCAConfig = CAConfig{
-		CAURL:   getEnvWithDefault("FABRIC_CA_URL", "https://localhost:10055"),
-		CAName:  getEnvWithDefault("FABRIC_CA_NAME", "ca-bsc"),
-		MSPID:   getEnvWithDefault("FABRIC_CA_MSPID", "BscMSP"),
-		SkipTLS: getEnvWithDefault("FABRIC_CA_SKIP_TLS", "true") == "true",
+		CAURL:    getEnvWithDefault("FABRIC_CA_URL", "https://localhost:10055"),
+		CAName:   getEnvWithDefault("FABRIC_CA_NAME", "ca-bsc"),
+		MSPID:    getEnvWithDefault("FABRIC_CA_MSPID", "BscMSP"),
+		TLSCerts: getEnvWithDefault("FABRIC_CA_TLS_CERTS", ""),
+		SkipTLS:  getEnvWithDefault("FABRIC_CA_SKIP_TLS", "true") == "true",
 	}
 	TLSCAConfig = CAConfig{
-		CAURL:   getEnvWithDefault("TLS_CA_URL", "https://localhost:10054"),
-		CAName:  getEnvWithDefault("TLS_CA_NAME", "tlsca-bsc"),
-		MSPID:   getEnvWithDefault("TLS_CA_MSPID", "BscMSP"),
-		SkipTLS: getEnvWithDefault("TLS_CA_SKIP_TLS", "true") == "true",
+		CAURL:    getEnvWithDefault("TLS_CA_URL", "https://localhost:10054"),
+		CAName:   getEnvWithDefault("TLS_CA_NAME", "tlsca-bsc"),
+		MSPID:    getEnvWithDefault("TLS_CA_MSPID", "BscMSP"),
+		TLSCerts: getEnvWithDefault("TLS_CA_TLS_CERTS", ""),
+		SkipTLS:  getEnvWithDefault("TLS_CA_SKIP_TLS", "true") == "true",
 	}
 	CAClient = createHTTPClient(FabricCAConfig)
 	TLSCAClient = createHTTPClient(TLSCAConfig)

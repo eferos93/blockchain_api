@@ -135,14 +135,123 @@ func getEnvWithDefault(key, defaultValue string) string {
 func createHTTPClient(config CAConfig) *http.Client {
 	transport := &http.Transport{}
 
-	// TODO: Add support for custom CA certificates if needed
 	if config.SkipTLS {
+		// Skip TLS verification for development/testing
 		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	} else {
+		// Configure secure TLS with CA certificates
+		tlsConfig := &tls.Config{
+			MinVersion: tls.VersionTLS12, // Enforce minimum TLS 1.2
+		}
+
+		// Load custom CA certificates if provided
+		if config.TLSCerts != "" {
+			caCertPool, err := loadCACertificates(config.TLSCerts)
+			if err != nil {
+				log.Printf("Warning: Failed to load CA certificates from %s: %v", config.TLSCerts, err)
+				log.Printf("Falling back to system CA certificates")
+			} else {
+				tlsConfig.RootCAs = caCertPool
+				log.Printf("Loaded custom CA certificates from: %s", config.TLSCerts)
+			}
+		}
+		
+		transport.TLSClientConfig = tlsConfig
 	}
 
 	return &http.Client{
 		Transport: transport,
 		Timeout:   30 * time.Second,
+	}
+}
+
+// loadCACertificates loads CA certificates from the specified path
+// The path can be either:
+// - A single PEM file containing one or more CA certificates
+// - A directory containing multiple PEM files
+func loadCACertificates(certPath string) (*x509.CertPool, error) {
+	caCertPool := x509.NewCertPool()
+	
+	// Check if path is a file or directory
+	info, err := os.Stat(certPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to access certificate path %s: %w", certPath, err)
+	}
+	
+	if info.IsDir() {
+		// Load all PEM files from directory
+		entries, err := os.ReadDir(certPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read certificate directory %s: %w", certPath, err)
+		}
+		
+		for _, entry := range entries {
+			if entry.IsDir() {
+				continue
+			}
+			
+			fileName := entry.Name()
+			// Only process .pem, .crt, and .cert files
+			if !isPEMFile(fileName) {
+				continue
+			}
+			
+			fullPath := filepath.Join(certPath, fileName)
+			if err := loadSingleCertFile(caCertPool, fullPath); err != nil {
+				log.Printf("Warning: Failed to load certificate from %s: %v", fullPath, err)
+				continue
+			}
+			log.Printf("Loaded CA certificate from: %s", fullPath)
+		}
+	} else {
+		// Load single certificate file
+		if err := loadSingleCertFile(caCertPool, certPath); err != nil {
+			return nil, err
+		}
+		log.Printf("Loaded CA certificate from: %s", certPath)
+	}
+	
+	return caCertPool, nil
+}
+
+// loadSingleCertFile loads certificates from a single PEM file
+func loadSingleCertFile(caCertPool *x509.CertPool, filePath string) error {
+	certPEM, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read certificate file: %w", err)
+	}
+	
+	// Parse and add all certificates in the PEM file
+	for {
+		block, rest := pem.Decode(certPEM)
+		if block == nil {
+			break
+		}
+		
+		if block.Type == "CERTIFICATE" {
+			cert, err := x509.ParseCertificate(block.Bytes)
+			if err != nil {
+				log.Printf("Warning: Failed to parse certificate in %s: %v", filePath, err)
+				certPEM = rest
+				continue
+			}
+			caCertPool.AddCert(cert)
+		}
+		
+		certPEM = rest
+	}
+	
+	return nil
+}
+
+// isPEMFile checks if a filename indicates a PEM certificate file
+func isPEMFile(filename string) bool {
+	ext := filepath.Ext(filename)
+	switch ext {
+	case ".pem", ".crt", ".cert":
+		return true
+	default:
+		return false
 	}
 }
 
