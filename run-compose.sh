@@ -102,6 +102,9 @@ case "$MODE" in
     "all")
         run_compose "all" "$@"
         ;;
+    "test-filestore")
+        run_compose "test-filestore" "$@"
+        ;;
     "status")
         show_status
         ;;

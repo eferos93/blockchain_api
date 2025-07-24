@@ -165,16 +165,21 @@ services:
       - all
   blockchain-api-filestore:
     build: .
-    container_name: blockchain-api-filestore-test
     ports:
       - "3000:3000"
     environment:
-      - KEYSTORE_TYPE=file
-      - KEYSTORE_CONFIG={"basePath":"/app/keystore_data","salt":""}
-      - KEYSTORE_PASSWORD=master123
+      KEYSTORE_TYPE: "file"
+      KEYSTORE_CONFIG: "{\"basePath\":\"/app/keystore_data\",\"salt\":\"\"}"
+      KEYSTORE_PASSWORD: "master123"
+      FABRIC_CA_URL: "${TEST_FABRIC_CA_URL}"
+      TLS_CA_URL: "${TEST_TLS_CA_URL}"
     volumes:
       - ./file_keystore_data:/app/keystore_data
       - ./identities:/app/identities:ro  # Read-only mount for reference
+    networks:
+      - blockchain-api-network
+    profiles:
+      - test-filestore
 
 volumes:
   openbao-athena-data:

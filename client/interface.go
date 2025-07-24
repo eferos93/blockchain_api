@@ -9,10 +9,10 @@ type OrgSetup struct {
 	MSPID   string `json:"mspId"`
 
 	// File-based authentication (for testing/legacy)
-	CryptoPath  string `json:"cryptoPath,omitempty"` // Optional: for file-based auth
-	CertPath    string `json:"certPath,omitempty"`   // Optional: for file-based auth
-	KeyPath     string `json:"keyPath,omitempty"`    // Optional: for file-based auth
-	TLSCertPath string `json:"tlsCertPath"`          // Required: for TLS connection
+	CryptoPath  string `json:"cryptoPath,omitempty"`  // Optional: for file-based auth
+	CertPath    string `json:"certPath,omitempty"`    // Optional: for file-based auth
+	KeyPath     string `json:"keyPath,omitempty"`     // Optional: for file-based auth
+	TLSCertPath string `json:"tlsCertPath,omitempty"` // Optional: for TLS connection
 
 	// Network connection
 	PeerEndpoint string `json:"peerEndpoint"`
