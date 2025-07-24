@@ -2,7 +2,9 @@ package caapi
 
 import (
 	"blockchain-api/keystore"
+	"bytes"
 	"crypto/ecdsa"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -114,38 +116,45 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to prepare enrollment request: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	TLSCAreqBody, err := prepareEnrollRequest(true, csrPEM)
+
+	// TODO: Implement TLS CA enrollment request preparation
+	// TLSCAreqBody, err := prepareEnrollRequest(true, csrPEM)
+	// if err != nil {
+	// 	http.Error(w, "Failed to prepare TLS enrollment request: "+err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
+
+	// Enroll to CA
+	CAEnrollBody, CAcertificatePEM, err := enrollToCA(FabricCAConfig, CAClient, CAreqBody, req)
 	if err != nil {
-		http.Error(w, "Failed to prepare TLS enrollment request: "+err.Error(), http.StatusInternalServerError)
+		log.Printf("Failed to enroll to CA: %v", err)
+		http.Error(w, "Failed to enroll to CA: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Make enrollment request to CA
-	enrollCAURL := fmt.Sprintf(CAEnrollEndpoint, FabricCAConfig.CAURL)
-	if FabricCAConfig.CAName != "" {
-		enrollCAURL += "?ca=" + FabricCAConfig.CAName
-	}
+	// Enroll to TLS CA COMMENTED for now
+	// TLSCAEnrollBody, TLSCAcertificatePEM, err := enrollToCA(TLSCAConfig, TLSCAClient, TLSCAreqBody, req)
+	// if err != nil {
+	// 	log.Printf("Failed to enroll to TLS CA: %v", err)
+	// 	http.Error(w, "Failed to enroll to TLS CA: "+err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
 
-	enrollTLSCAURL := fmt.Sprintf(CAEnrollEndpoint, TLSCAConfig.CAURL)
-	if TLSCAConfig.CAName != "" {
-		enrollTLSCAURL += "?ca=" + TLSCAConfig.CAName
-	}
-
-	TLSCAEnrollBody, shouldReturn := sendEnrollRequest(enrollTLSCAURL, TLSCAreqBody, w, req)
-	CAEnrollBody, shouldReturn := sendEnrollRequest(enrollCAURL, CAreqBody, w, req)
-	if shouldReturn {
-		http.Error(w, "Failed to enroll identity", http.StatusInternalServerError)
+	// Parse enrollment responses
+	var CAenrollResp map[string]any
+	if err := json.Unmarshal(CAEnrollBody, &CAenrollResp); err != nil {
+		http.Error(w, "Failed to parse CA enrollment response: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	// Parse enrollment response
-	CAenrollResp, CAcertificatePEM, shouldReturn := parseResponse(CAEnrollBody, w)
-	TLSCAEnrollResp, TLSCAcertificatePEM, shouldReturn := parseResponse(TLSCAEnrollBody, w)
-	if shouldReturn {
-		return
-	}
+	// var TLSCAEnrollResp map[string]any
+	// if err := json.Unmarshal(TLSCAEnrollBody, &TLSCAEnrollResp); err != nil {
+	// 	http.Error(w, "Failed to parse TLS CA enrollment response: "+err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
 
-	if err := keystore.StorePrivateKey(req.EnrollmentID, req.Secret, CAcertificatePEM, TLSCAcertificatePEM, privateKey); err != nil {
+	// TODO: we are storing an empty TLS certificate for now
+	if err := keystore.StorePrivateKey(req.EnrollmentID, req.Secret, CAcertificatePEM, []byte{}, privateKey); err != nil {
 		log.Printf("Warning: Failed to store enrollment result in keystore: %v", err)
 		// Don't fail the request, just log the warning
 	} else {
@@ -155,7 +164,7 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var response = map[string]any{
 		"CAEnrollResp":    CAenrollResp,
-		"TLSCAEnrollResp": TLSCAEnrollResp,
+		"TLSCAEnrollResp": "", //TLSCAEnrollResp,
 		"success":         true,
 	}
 	json.NewEncoder(w).Encode(response)
@@ -291,4 +300,59 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+// enrollToCA performs enrollment to a specific Certificate Authority
+func enrollToCA(caConfig CAConfig, client *http.Client, reqBody []byte, enrollmentReq EnrollmentRequest) ([]byte, []byte, error) {
+	// Build enrollment URL
+	enrollURL := fmt.Sprintf(CAEnrollEndpoint, caConfig.CAURL)
+	if caConfig.CAName != "" {
+		enrollURL += "?ca=" + caConfig.CAName
+	}
+
+	// Create HTTP request
+	httpReq, err := http.NewRequest("POST", enrollURL, bytes.NewBuffer(reqBody))
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Set headers
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.SetBasicAuth(enrollmentReq.EnrollmentID, enrollmentReq.Secret)
+
+	// Send request
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to connect to CA server: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to read CA response: %w", err)
+	}
+
+	// Check response status
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		return nil, nil, fmt.Errorf("enrollment failed: %s", string(body))
+	}
+
+	// Parse response to extract certificate
+	var enrollResp map[string]any
+	if err := json.Unmarshal(body, &enrollResp); err != nil {
+		return nil, nil, fmt.Errorf("failed to parse enrollment response: %w", err)
+	}
+
+	var certificatePEM []byte
+	if result, ok := enrollResp["result"].(map[string]any); ok {
+		if certB64, ok := result["Cert"].(string); ok {
+			certificatePEM, err = base64.StdEncoding.DecodeString(certB64)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to decode certificate from enrollment response: %w", err)
+			}
+		}
+	}
+
+	return body, certificatePEM, nil
 }
