@@ -14,7 +14,7 @@ import (
 )
 
 // Integration tests for real CA server
-// These tests require a running CA server at localhost:10055
+// These tests require a running CA server at localhost:10055 and 10054
 
 func generateTestUserID() string {
 	// Method 1: Using crypto/rand (more secure)
@@ -28,18 +28,7 @@ func generateTestUserID() string {
 }
 
 func TestRealCAInfoHandler(t *testing.T) {
-	// Test request with real CA configuration
-	requestBody := map[string]any{
-		"caConfig": map[string]any{
-			"caUrl":   "https://localhost:10055",
-			"caName":  "ca-bsc",
-			"mspId":   "BscMSP",
-			"skipTls": true,
-		},
-	}
-
-	body, _ := json.Marshal(requestBody)
-	req := httptest.NewRequest("GET", "/fabricCA/info", bytes.NewBuffer(body))
+	req := httptest.NewRequest("GET", "/fabricCA/info", nil)
 	req.Header.Set("Content-Type", "application/json")
 
 	recorder := httptest.NewRecorder()
@@ -72,8 +61,6 @@ func TestRealCAInfoHandler(t *testing.T) {
 }
 
 func TestRealCARegisterAndEnrollFlow(t *testing.T) {
-	// Combined test for register and enroll flow
-	// This test follows the proper sequence: register -> enroll
 
 	userID := generateTestUserID()
 	userPW := userID + "pw"
