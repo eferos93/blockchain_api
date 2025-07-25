@@ -4,7 +4,6 @@ import (
 	"blockchain-api/keystore"
 	"crypto/sha256"
 	"crypto/x509"
-	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -39,18 +38,18 @@ func IdentityHashFromPEM(pem string) string {
 }
 
 // Initialize the setup for the organization.
-func Initialize(setup OrgSetup, userSecretB64 string) (*OrgSetup, error) {
-	userSecret, err := base64.StdEncoding.DecodeString(userSecretB64)
-	log.Printf("Initializing connection for %s...\n", setup.OrgName)
-	clientConnection, err := setup.newGrpcConnection()
+func Initialize(enrollmentId, userSecret string) (*client.Gateway, error) {
+	// userSecret, err := base64.StdEncoding.DecodeString(userSecretB64)
+	log.Printf("Initializing connection for %s...\n", orgSetup.OrgName)
+	clientConnection, err := newGrpcConnection()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC connection: %w", err)
 	}
-	id, err := setup.newIdentity(userSecret)
+	id, err := newIdentity(enrollmentId, []byte(userSecret))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create identity: %w", err)
 	}
-	sign, err := setup.newSign(userSecret)
+	sign, err := newSign(enrollmentId, []byte(userSecret))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create sign function: %w", err)
 	}
@@ -67,38 +66,38 @@ func Initialize(setup OrgSetup, userSecretB64 string) (*OrgSetup, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to gateway: %w", err)
 	}
-	setup.Gateway = *gateway
+	// setup.Gateway = *gateway
 	log.Println("Initialization complete")
-	return &setup, nil
+	return gateway, nil
 }
 
-// Get OrgSetup from session map
-func GetOrgSetup(sessionID string) (*OrgSetup, bool) {
-	val, ok := orgSetupSessions.Load(sessionID)
+// Get Gateway from session map
+func GetGateway(sessionID string) (*client.Gateway, bool) {
+	val, ok := orgGatewaysSessions.Load(sessionID)
 	if !ok {
 		return nil, false
 	}
-	return val.(*OrgSetup), true
+	return val.(*client.Gateway), true
 }
 
 // Remove OrgSetup from session map
-func RemoveOrgSetup(sessionID string) {
-	orgSetupSessions.Delete(sessionID)
+func RemoveGateway(sessionID string) {
+	orgGatewaysSessions.Delete(sessionID)
 }
 
 // newGrpcConnection creates a gRPC connection to the Gateway server.
-func (setup OrgSetup) newGrpcConnection() (*grpc.ClientConn, error) {
+func newGrpcConnection() (*grpc.ClientConn, error) {
 	// TODO: implement TLS certificate loading from keystore if UseKeystore is true
-	certificate, err := loadCertificate(setup.TLSCertPath)
+	certificate, err := loadCertificate(orgSetup.TLSCertPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load TLS certificate: %w", err)
 	}
 
 	certPool := x509.NewCertPool()
 	certPool.AddCert(certificate)
-	transportCredentials := credentials.NewClientTLSFromCert(certPool, setup.GatewayPeer)
+	transportCredentials := credentials.NewClientTLSFromCert(certPool, orgSetup.GatewayPeer)
 
-	connection, err := grpc.NewClient(setup.PeerEndpoint, grpc.WithTransportCredentials(transportCredentials))
+	connection, err := grpc.NewClient(orgSetup.PeerEndpoint, grpc.WithTransportCredentials(transportCredentials))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC connection: %w", err)
 	}
@@ -107,28 +106,28 @@ func (setup OrgSetup) newGrpcConnection() (*grpc.ClientConn, error) {
 }
 
 // newIdentity creates a client identity for this Gateway connection using an X.509 certificate.
-func (setup OrgSetup) newIdentity(userSecret []byte) (*identity.X509Identity, error) {
+func newIdentity(enrollmentID string, userSecret []byte) (*identity.X509Identity, error) {
 	var certificate *x509.Certificate
 	var certficatePEM []byte
 	var err error
 
-	if setup.CertPath == "" && setup.KeyPath == "" && setup.TLSCertPath == "" {
+	if orgSetup.CertPath == "" && orgSetup.KeyPath == "" && orgSetup.TLSCertPath == "" {
 		// Load from keystore
-		certficatePEM, _, err = keystore.GetKeyForFabricClient(setup.EnrollmentID, setup.MSPID, string(userSecret))
+		certficatePEM, _, err = keystore.GetKeyForFabricClient(enrollmentID, orgSetup.MSPID, string(userSecret))
 		if err != nil {
 			return nil, fmt.Errorf("failed to get certificate from keystore: %w", err)
 		}
 		certificate, err = identity.CertificateFromPEM(certficatePEM)
 	} else {
 		// Load from file system
-		certificate, err = loadCertificate(setup.CertPath)
+		certificate, err = loadCertificate(orgSetup.CertPath)
 	}
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to load certificate: %w", err)
 	}
 
-	id, err := identity.NewX509Identity(setup.MSPID, certificate)
+	id, err := identity.NewX509Identity(orgSetup.MSPID, certificate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create X.509 identity: %w", err)
 	}
@@ -137,24 +136,24 @@ func (setup OrgSetup) newIdentity(userSecret []byte) (*identity.X509Identity, er
 }
 
 // newSign creates a function that generates a digital signature from a message digest using a private key.
-func (setup OrgSetup) newSign(userSecret []byte) (identity.Sign, error) {
+func newSign(enrollmentID string, userSecret []byte) (identity.Sign, error) {
 	var privateKeyPEM []byte
 	var err error
 
-	if setup.KeyPath == "" && setup.CertPath == "" && setup.TLSCertPath == "" {
+	if orgSetup.KeyPath == "" && orgSetup.CertPath == "" && orgSetup.TLSCertPath == "" {
 		// Load from keystore
-		_, privateKeyPEM, err = keystore.GetKeyForFabricClient(setup.EnrollmentID, setup.MSPID, string(userSecret))
+		_, privateKeyPEM, err = keystore.GetKeyForFabricClient(enrollmentID, orgSetup.MSPID, string(userSecret))
 		if err != nil {
 			return nil, fmt.Errorf("failed to get key from keystore: %w", err)
 		}
 
 	} else {
 		// Load from file system
-		files, err := os.ReadDir(setup.KeyPath)
+		files, err := os.ReadDir(orgSetup.KeyPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read private key directory: %w", err)
 		}
-		privateKeyPEM, err = os.ReadFile(path.Join(setup.KeyPath, files[0].Name()))
+		privateKeyPEM, err = os.ReadFile(path.Join(orgSetup.KeyPath, files[0].Name()))
 
 	}
 
@@ -177,4 +176,12 @@ func loadCertificate(filename string) (*x509.Certificate, error) {
 		return nil, fmt.Errorf("failed to read certificate file: %w", err)
 	}
 	return identity.CertificateFromPEM(certificatePEM)
+}
+
+func getEnvWithDefault(key, defaultValue string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	return value
 }

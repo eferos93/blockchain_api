@@ -9,7 +9,7 @@ import (
 )
 
 // Invoke handles chaincode invoke requests.
-func (setup *OrgSetup) Invoke(w http.ResponseWriter, r *http.Request) {
+func (setup *OrgSetup) Invoke(w http.ResponseWriter, r *http.Request, gateway *client.Gateway) {
 	w.Header().Set("Content-Type", "application/json")
 
 	fmt.Println("Received Invoke request")
@@ -22,7 +22,7 @@ func (setup *OrgSetup) Invoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	network := setup.Gateway.GetNetwork(reqBody.ChannelId)
+	network := gateway.GetNetwork(reqBody.ChannelId)
 	contract := network.GetContract(reqBody.ChaincodeId)
 	txn_proposal, err := contract.NewProposal(reqBody.Function, client.WithArguments(reqBody.Args...))
 
@@ -44,10 +44,10 @@ func (setup *OrgSetup) Invoke(w http.ResponseWriter, r *http.Request) {
 }
 
 // InvokeWithBody handles chaincode invoke requests with a pre-parsed RequestBody.
-func (setup *OrgSetup) InvokeWithBody(w http.ResponseWriter, reqBody RequestBody) {
+func InvokeWithBody(w http.ResponseWriter, reqBody RequestBody, gateway *client.Gateway) {
 	w.Header().Set("Content-Type", "application/json")
 	fmt.Println("Received Invoke request")
-	network := setup.Gateway.GetNetwork(reqBody.ChannelId)
+	network := gateway.GetNetwork(reqBody.ChannelId)
 	contract := network.GetContract(reqBody.ChaincodeId)
 	txn_proposal, err := contract.NewProposal(reqBody.Function, client.WithArguments(reqBody.Args...))
 	if err != nil {

@@ -1,7 +1,5 @@
 package client
 
-import "github.com/hyperledger/fabric-gateway/pkg/client"
-
 // OrgSetup contains organization's config to interact with the network.
 
 type OrgSetup struct {
@@ -17,18 +15,15 @@ type OrgSetup struct {
 	// Network connection
 	PeerEndpoint string `json:"peerEndpoint"`
 	GatewayPeer  string `json:"gatewayPeer"`
-
-	// Keystore-based authentication (preferred)
-	UseKeystore  bool   `json:"useKeystore"`            // If true, load from global keystore
-	EnrollmentID string `json:"enrollmentId,omitempty"` // Required if UseKeystore is true
-
 	// Internal
-	Gateway client.Gateway `json:"-"` // Don't serialize
+	// Gateway client.Gateway `json:"-"` // Don't serialize
 }
 
 type ClientRequestBody struct {
-	OrgSetup OrgSetup `json:"orgSetup"`
-	Secret   string   `json:"secret"`
+	// OrgSetup OrgSetup `json:"orgSetup"`
+	Secret       string `json:"secret"`
+	EnrollmentID string `json:"enrollmentId"` // Required if UseKeystore is true
+
 }
 
 // Combined request for OrgSetup and transaction

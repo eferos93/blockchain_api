@@ -6,16 +6,33 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/gorilla/sessions"
 )
 
 // Store the initialized OrgSetups per session token (thread-safe)
-var orgSetupSessions sync.Map
+var orgGatewaysSessions sync.Map
 
 var store *sessions.CookieStore
 var storeOnce sync.Once
+var orgSetup OrgSetup
+
+func init() {
+	base := filepath.Join("..", "identities", "bsc", "blockclient", "msp")
+	// Initialize the session store
+	orgSetup = OrgSetup{
+		OrgName:      getEnvWithDefault("ORG_NAME", "bsc"),
+		MSPID:        getEnvWithDefault("MSP_ID", "BscMSP"),
+		CryptoPath:   getEnvWithDefault("CRYPTO_PATH", base),
+		CertPath:     getEnvWithDefault("CERT_PATH", filepath.Join(base, "signcerts", "cert.pem")),
+		KeyPath:      getEnvWithDefault("KEY_PATH", filepath.Join(base, "keystore")),
+		TLSCertPath:  getEnvWithDefault("TLS_CERT_PATH", filepath.Join(base, "tlscacerts", "ca.crt")),
+		PeerEndpoint: getEnvWithDefault("PEER_ENDPOINT", "dns:///localhost:9051"),
+		GatewayPeer:  getEnvWithDefault("GATEWAY_PEER", "peer0.bsc.dt4h.com"),
+	}
+}
 
 // getSessionStore initializes the session store lazily
 func getSessionStore() *sessions.CookieStore {
@@ -40,12 +57,12 @@ func getSessionStore() *sessions.CookieStore {
 // Initialize the setup for the organization and store in session map.
 func InitializeWithSession(clientRequestBody ClientRequestBody, session *sessions.Session, w http.ResponseWriter, r *http.Request) error {
 
-	orgSetup, err := Initialize(clientRequestBody.OrgSetup, clientRequestBody.Secret)
+	gateway, err := Initialize(clientRequestBody.EnrollmentID, clientRequestBody.Secret)
 	if err != nil {
 		return err
 	}
 	// Use the gorilla session ID as the key
-	orgSetupSessions.Store(session.ID, orgSetup)
+	orgGatewaysSessions.Store(session.ID, gateway)
 	session.Options = &sessions.Options{
 		Path:     "/",
 		HttpOnly: true,
@@ -57,7 +74,7 @@ func InitializeWithSession(clientRequestBody ClientRequestBody, session *session
 // Handler for /client/invoke
 func InvokeHandler(w http.ResponseWriter, r *http.Request) {
 	session, _ := getSessionStore().Get(r, "fabric-session")
-	orgSetup, ok := GetOrgSetup(session.ID)
+	gateway, ok := GetGateway(session.ID)
 
 	if !ok {
 		http.Error(w, "Fabric client not initialized for this session. Call /client/ first.", http.StatusBadRequest)
@@ -68,7 +85,7 @@ func InvokeHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	orgSetup.InvokeWithBody(w, reqBody)
+	InvokeWithBody(w, reqBody, gateway)
 }
 
 // Handler for /client/query
@@ -84,7 +101,7 @@ func QueryHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		session, _ := getSessionStore().Get(r, "fabric-session")
-		orgSetup, ok := GetOrgSetup(session.ID)
+		gateway, ok := GetGateway(session.ID)
 		if !ok {
 			http.Error(w, "Fabric client not initialized for this session. Call /client/ first.", http.StatusBadRequest)
 			return
@@ -95,7 +112,7 @@ func QueryHandler(w http.ResponseWriter, r *http.Request) {
 			Function:    function,
 			Args:        args,
 		}
-		orgSetup.QueryWithBody(w, reqBody)
+		QueryWithBody(w, reqBody, gateway)
 		return
 	}
 	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -121,17 +138,17 @@ func ClientHandler(w http.ResponseWriter, r *http.Request) {
 // Handler for /client/close
 func CloseHandler(w http.ResponseWriter, r *http.Request) {
 	session, _ := getSessionStore().Get(r, "fabric-session")
-	orgSetup, ok := GetOrgSetup(session.ID)
+	gateway, ok := GetGateway(session.ID)
 	if !ok {
 		http.Error(w, "No active Fabric client connection for this session.", http.StatusBadRequest)
 		return
 	}
-	err := orgSetup.Gateway.Close()
+	err := gateway.Close()
 	if err != nil {
 		http.Error(w, "Error closing Fabric client connection: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-	RemoveOrgSetup(session.ID)
+	RemoveGateway(session.ID)
 	session.Options.MaxAge = -1 // Invalidate session cookie
 	session.Save(r, w)
 	w.WriteHeader(http.StatusOK)

@@ -97,6 +97,9 @@ services:
       OPENBAO_TOKEN: "myroot"
       OPENBAO_SECRET_PATH: "blockchain-keys/"
       ORG_NAME: "ub"
+      MSP_ID: "UbMSP"
+      PEER_ENDPOINT: "dns:///localhost:8081"
+      GATEWAY_PEER: "peer0.ub.dt4h.com"
       FABRIC_CA_URL: "${UB_FABRIC_CA_URL}"
       TLS_CA_URL: "${UB_TLS_CA_URL}"
     profiles:
@@ -116,6 +119,9 @@ services:
       OPENBAO_TOKEN: "myroot"
       OPENBAO_SECRET_PATH: "blockchain-keys/"
       ORG_NAME: "bsc"
+      MSP_ID: "BscMSP"
+      PEER_ENDPOINT: "dns:///localhost:9051"
+      GATEWAY_PEER: "peer0.bsc.dt4h.com"
       FABRIC_CA_URL: "${BSC_FABRIC_CA_URL}"
       TLS_CA_URL: "${BSC_TLS_CA_URL}"
     profiles:
