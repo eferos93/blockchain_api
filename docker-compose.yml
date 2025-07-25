@@ -171,17 +171,25 @@ services:
       - all
   blockchain-api-filestore:
     <<: *blockchain-api-template
+    container_name: blockchain-api-filestore
     ports:
       - "3000:3000"
     environment:
       KEYSTORE_TYPE: "file"
       KEYSTORE_CONFIG: "{\"basePath\":\"/app/keystore_data\",\"salt\":\"\"}"
       KEYSTORE_PASSWORD: "master123"
-      FABRIC_CA_URL: "${TEST_FABRIC_CA_URL}"
-      TLS_CA_URL: "${TEST_TLS_CA_URL}"
+      FABRIC_CA_URL: "${TEST_FABRIC_CA_URL:-https://localhost:10055}"
+      TLS_CA_URL: "${TEST_TLS_CA_URL:-https://localhost:10054}"
+      FABRIC_CA_SKIP_TLS: "true"
+      TLS_CA_SKIP_TLS: "true"
     volumes:
-      - ./file_keystore_data:/app/keystore_data
-      - ./identities:/app/identities:ro  # Read-only mount for reference
+      - type: bind
+        source: ./file_keystore_data
+        target: /app/keystore_data
+      - type: bind
+        source: ./identities
+        target: /app/identities
+        read_only: true
     profiles:
       - test-filestore
 
