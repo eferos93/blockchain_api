@@ -8,6 +8,7 @@ mkdir -p ./identities/
 # Copy the identities folder
 
 sudo cp -r ../fabric/identities/* ./identities/
+sudo chown -R $USER:$USER identities/
 
 echo "Identities copied. Running tests..."
 

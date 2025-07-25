@@ -178,17 +178,18 @@ services:
       KEYSTORE_TYPE: "file"
       KEYSTORE_CONFIG: "{\"basePath\":\"/app/keystore_data\",\"salt\":\"\"}"
       KEYSTORE_PASSWORD: "master123"
+      ORG_NAME: "bsc"
+      MSP_ID: "BscMSP"
+      PEER_ENDPOINT: "dns:///localhost:9051"
+      GATEWAY_PEER: "peer0.bsc.dt4h.com"
       FABRIC_CA_URL: "${TEST_FABRIC_CA_URL:-https://localhost:10055}"
       TLS_CA_URL: "${TEST_TLS_CA_URL:-https://localhost:10054}"
       FABRIC_CA_SKIP_TLS: "true"
       TLS_CA_SKIP_TLS: "true"
     volumes:
       - type: bind
-        source: ./file_keystore_data
-        target: /app/keystore_data
-      - type: bind
         source: ./identities
-        target: /identities
+        target: /app/identities
         read_only: true
     profiles:
       - test-filestore

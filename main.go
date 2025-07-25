@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -45,11 +44,12 @@ func main() {
 	if err := keystore.InitializeKeystore(keystoreType, keystoreConfig, keystorePassword); err != nil {
 		log.Fatalf("Failed to initialize keystore: %v", err)
 	}
+	log.Printf("Keystore initialized: type=%s, config=%s", keystoreType, keystoreConfig)
+
 	// Load organization identities
 	if err := LoadOrganizationIdentities(os.Getenv("ORG_NAME"), &keystore.GlobalKeystore); err != nil {
 		log.Fatalf("Failed to load organization identities: %v", err)
 	}
-	log.Printf("Keystore initialized: type=%s, config=%s", keystoreType, keystoreConfig)
 
 	r := mux.NewRouter()
 
@@ -125,11 +125,11 @@ func LoadOrganizationIdentities(organization string, keystore *keystore.Keystore
 
 func loadIdentity(ks *keystore.KeystoreManager, identity IdentityInfo) error {
 	// Build paths to identity files
-	basePath := filepath.Join("identities", identity.Organization, identity.Name)
+	basePath := filepath.Join("/app", "identities", identity.Organization, identity.Name)
 
 	privateKeyPath := filepath.Join(basePath, "msp", "keystore", "key.pem")
 	certificatePath := filepath.Join(basePath, "msp", "signcerts", "cert.pem")
-	tlsCertificatePath := filepath.Join(basePath, "msp", "tlscacerts", "cert.pem")
+	tlsCertificatePath := filepath.Join(basePath, "msp", "tlscacerts", "ca.crt")
 
 	// Read private key
 	privateKeyPEM, err := readFile(privateKeyPath)
@@ -154,16 +154,9 @@ func loadIdentity(ks *keystore.KeystoreManager, identity IdentityInfo) error {
 }
 
 func readFile(path string) ([]byte, error) {
-	file, err := os.Open(path)
+	content, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open file %s: %w", path, err)
 	}
-	defer file.Close()
-
-	content, err := io.ReadAll(file)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file %s: %w", path, err)
-	}
-
 	return content, nil
 }
