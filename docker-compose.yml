@@ -188,7 +188,7 @@ services:
         target: /app/keystore_data
       - type: bind
         source: ./identities
-        target: /app/identities
+        target: /identities
         read_only: true
     profiles:
       - test-filestore
