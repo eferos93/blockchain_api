@@ -18,36 +18,29 @@ type IdentityInfo struct {
 	Password     string // Default password for testing
 }
 
-func main() {
-	if len(os.Args) != 2 {
-		log.Fatal("Usage: go run load_identities_file_keystore.go <keystore_base_path>")
+// LoadOrganizationIdentities loads all identities for a given organization into the file keystore
+func LoadOrganizationIdentities(keystoreBasePath, organization string, fileKeystore keystore.KeystoreManager) error {
+	// Define available identities per organization
+	var identities []IdentityInfo
+
+	switch organization {
+	case "bsc":
+		identities = []IdentityInfo{
+			{Name: "admin0", Organization: "bsc", Username: "admin0", Password: "admin0pw"},
+			{Name: "peer0", Organization: "bsc", Username: "peer0", Password: "peer0pw"},
+			{Name: "registrar0", Organization: "bsc", Username: "registrar0", Password: "registrar0pw"},
+			{Name: "blockclient", Organization: "bsc", Username: "blockclient", Password: "blockclientpw"},
+		}
+	case "ub":
+		identities = []IdentityInfo{
+			{Name: "admin0", Organization: "ub", Username: "admin0", Password: "admin0pw"},
+			{Name: "registrar0", Organization: "ub", Username: "registrar0", Password: "registrar0pw"},
+		}
+	default:
+		return fmt.Errorf("unsupported organization: %s", organization)
 	}
 
-	keystoreBasePath := os.Args[1]
-
-	// Define test identities to load
-	identities := []IdentityInfo{
-		// BSC identities
-		{Name: "admin0", Organization: "bsc", Username: "admin0", Password: "admin0pw"},
-		{Name: "peer0", Organization: "bsc", Username: "peer0", Password: "peer0pw"},
-		{Name: "registrar0", Organization: "bsc", Username: "registrar0", Password: "registrar0pw"},
-		{Name: "blockclient", Organization: "bsc", Username: "blockclient", Password: "blockclientpw"},
-
-		// UB identities
-		{Name: "admin0", Organization: "ub", Username: "admin0", Password: "admin0pw"},
-		{Name: "registrar0", Organization: "ub", Username: "registrar0", Password: "registrar0pw"},
-	}
-
-	// Initialize file-based keystore
-	config := keystore.FileKeystoreConfig{
-		BasePath: keystoreBasePath,
-		Salt:     "", // Will be auto-generated
-	}
-
-	fileKeystore, err := keystore.NewFileKeystore(config)
-	if err != nil {
-		log.Fatalf("Failed to initialize file keystore: %v", err)
-	}
+	fmt.Printf("Loading identities for organization: %s\n", organization)
 
 	// Load each identity
 	for _, identity := range identities {
@@ -61,10 +54,10 @@ func main() {
 		fmt.Printf("✓ Successfully loaded identity: %s\n", identity.Username)
 	}
 
-	fmt.Println("\nIdentity loading completed!")
+	fmt.Printf("\nIdentity loading completed for organization: %s\n", organization)
 
 	// Verify loaded identities
-	fmt.Println("\nVerifying loaded identities:")
+	fmt.Printf("\nVerifying loaded identities for %s:\n", organization)
 	for _, identity := range identities {
 		entry, err := fileKeystore.RetrieveKey(identity.Username, identity.Password)
 		if err != nil {
@@ -73,6 +66,22 @@ func main() {
 		}
 		fmt.Printf("✓ Verified identity: %s (EnrollmentID: %s)\n", identity.Username, entry.EnrollmentID)
 	}
+
+	return nil
+}
+
+// LoadAllOrganizationIdentities loads identities for all supported organizations
+func LoadAllOrganizationIdentities(keystoreBasePath string, fileKeystore keystore.KeystoreManager) error {
+	organizations := []string{"bsc", "ub"}
+
+	for _, org := range organizations {
+		if err := LoadOrganizationIdentities(keystoreBasePath, org, fileKeystore); err != nil {
+			return fmt.Errorf("failed to load identities for organization %s: %w", org, err)
+		}
+		fmt.Println()
+	}
+
+	return nil
 }
 
 func loadIdentity(ks keystore.KeystoreManager, identity IdentityInfo) error {
@@ -81,7 +90,7 @@ func loadIdentity(ks keystore.KeystoreManager, identity IdentityInfo) error {
 
 	privateKeyPath := filepath.Join(basePath, "msp", "keystore", "key.pem")
 	certificatePath := filepath.Join(basePath, "msp", "signcerts", "cert.pem")
-	tlsCertificatePath := filepath.Join(basePath, "tls", "signcerts", "cert.pem")
+	tlsCertificatePath := filepath.Join(basePath, "msp", "tlscacerts", "cert.pem")
 
 	// Read private key
 	privateKeyPEM, err := readFile(privateKeyPath)

@@ -21,7 +21,6 @@ var orgSetup OrgSetup
 
 func init() {
 	base := filepath.Join("..", "identities", "bsc", "blockclient", "msp")
-	// Initialize the session store
 	orgSetup = OrgSetup{
 		OrgName:      getEnvWithDefault("ORG_NAME", "bsc"),
 		MSPID:        getEnvWithDefault("MSP_ID", "BscMSP"),
