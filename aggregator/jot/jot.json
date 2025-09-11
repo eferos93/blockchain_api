@@ -1,0 +1,10 @@
+{
+  "params": {
+    "main.ol": [
+      {
+        "name": "Aggregator",
+        "params": {}
+      }
+    ]
+  }
+}
