@@ -1,3 +1,7 @@
+type KeycloakServiceParams {
+    location: string
+}
+
 type VATokenRequest {
     client_id: string
     grant_type: string

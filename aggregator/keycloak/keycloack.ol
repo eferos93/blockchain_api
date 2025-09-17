@@ -7,7 +7,7 @@ interface KeycloakServerInterface {
         PutUserProfileData(UpdateUserProfileRequest)(Success)
 }
 
-service Keycloak {
+service Keycloak ( params : KeycloakServiceParams ) {
     execution: concurrent
     outputPort KeycloakServerPort {
         location: "socket://inb.bsc.es/"
@@ -22,7 +22,7 @@ service Keycloak {
                 alias = "auth/realms/datatools4heart/protocol/openid-connect/token"
                 method = "post"
                 format = "x-www-form-urlencoded" //"application/x-www-form-urlencoded"
-                // addHeader.header[0] << { "Accept" { value = "application/json"} }
+                // addHeader.header[0] << { "Accept" { value = "application/json"} } this add headers both to request and response
                 requestHeaders.("Accept") = "application/json"
             }
             osc.GetUserProfileData << {
@@ -40,6 +40,10 @@ service Keycloak {
             }
         }
         interfaces: KeycloakServerInterface
+    }
+
+    inputPort KeycloakClientPort {
+        location: "socket://" + params.location
     }
 }
 
