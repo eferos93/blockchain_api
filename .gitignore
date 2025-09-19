@@ -27,3 +27,5 @@ go.work.sum
 identities/
 secure-keystore/
 keycloak/curls.txt
+
+aggregator/node_modules/
