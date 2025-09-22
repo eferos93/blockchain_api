@@ -123,6 +123,7 @@ service Keycloak {
             success = is_defined(userProfileData.attributes.bcsecret)
         }
         updateUserData(BcSecretData)(success) {
+            token -> BcSecretData.token
             GetUserProfileData@KeycloakServerPort()(userProfileData)
             userProfileData.attributes.bcsecret = bcsecret
             PutUserProfileData@KeycloakServerPort(userProfileData)(success)

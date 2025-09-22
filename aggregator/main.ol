@@ -29,6 +29,10 @@ service Aggregator {
         interfaces: BlockchainAPIInterface
     }
 
+    outputPort CAClient {
+        protocol: http
+        interfaces: CAClientInterface
+    }
 
     inputPort ip {
         location: "local"
@@ -39,7 +43,10 @@ service Aggregator {
 
 	main {
        [executeTransaction(transactionReq)(TransactionResponse) {
-        
+            isUserRegistered@Keycloak(transactionReq.accessToken)(isRegistered)
+            if (!isRegistered) {
+
+            }
        }]
 	}
 }
