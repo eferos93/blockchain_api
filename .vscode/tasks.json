@@ -16,6 +16,14 @@
         "options": { "cwd": "${workspaceFolder}" },
         "problemMatcher": "$go",
         "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "Run CAAPI tests (script)",
+      "type": "shell",
+      "command": "${workspaceFolder}/tests_scripts/caapi_tests.sh",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": "$go",
+      "presentation": { "reveal": "always", "panel": "shared" }
     }
   ]
 }
