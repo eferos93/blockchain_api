@@ -1,0 +1,21 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Keycloak tests (script)",
+      "type": "shell",
+      "command": "${workspaceFolder}/tests_scripts/keycloak_client_test.sh",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": "$go",
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+        "label": "Run Client tests (script)",
+        "type": "shell",
+        "command": "${workspaceFolder}/tests_scripts/copy_identities_and_test_client.sh",
+        "options": { "cwd": "${workspaceFolder}" },
+        "problemMatcher": "$go",
+        "presentation": { "reveal": "always", "panel": "shared" }
+    }
+  ]
+}

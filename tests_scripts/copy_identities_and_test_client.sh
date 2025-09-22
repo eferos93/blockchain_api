@@ -7,8 +7,9 @@ mkdir -p ./identities/
 
 # Copy the identities folder
 
+# I suppose that the network definition is in fabric/ folder at the same level as blockchain_api
 sudo cp -r ../fabric/identities/* ./identities/
-sudo chown -R $USER:$USER identities/
+sudo chown -R $USER:$USER ./identities/
 
 echo "Identities copied. Running tests..."
 

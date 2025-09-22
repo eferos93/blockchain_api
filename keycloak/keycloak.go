@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 )
@@ -24,11 +25,28 @@ const (
 	keycloakUserInfoURL           string = "https://inb.bsc.es/auth/realms/datatools4heart/account/"
 	vaClientID                    string = "va-webapp"
 	caClientID                    string = "dt4h-ca"
-	caClientSecret                string = "ZTZqz6wBXVV9wm8xtBkiEQEOPL9JGj5U"
 	grantTypePassword             string = "password"
 	grantTypeTokenExchange        string = "urn:ietf:params:oauth:grant-type:token-exchange"
 	requestedTokenTypeAccessToken string = "urn:ietf:params:oauth:token-type:access_token"
 )
+
+var caClientSecret string
+
+func init() {
+	var err error
+	caClientSecret, err = getEnv("KEYCLOAK_CA_CLIENT_SECRET")
+	if err != nil {
+		panic(err)
+	}
+}
+
+func getEnv(key string) (string, error) {
+	envVar := os.Getenv(key)
+	if envVar == "" {
+		return "", fmt.Errorf("environment variable %s is not set", key)
+	}
+	return envVar, nil
+}
 
 func GetVAToken(username, password string) (*VATokenResponse, error) {
 	data := url.Values{

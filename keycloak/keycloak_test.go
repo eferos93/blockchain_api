@@ -12,6 +12,7 @@ const (
 	password     = "123456"
 )
 
+// IMPORTANT: RUN THIS TEST FILE USING THE VSCODE TASKS, OR RUN THE SCRIPT IN tests_scripts
 func TestGetVAToken(t *testing.T) {
 	token, err := keycloak.GetVAToken(testUsername, password)
 	if err != nil {
