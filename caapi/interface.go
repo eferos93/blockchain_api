@@ -43,12 +43,12 @@ type Name struct {
 
 // RegistrationRequest represents a request to register a new identity
 type RegistrationRequest struct {
-	AdminIdentity      AdminIdentity `json:"adminIdentity"`      // Admin credentials
-	UserRegistrationID string        `json:"userRegistrationId"` // New user ID
-	UserSecret         string        `json:"userSecret"`         // Optional secret (auto-generated if empty)
-	Type               string        `json:"type"`               // Identity type (client, peer, orderer, admin)
-	Affiliation        string        `json:"affiliation"`        // User affiliation
-	Attributes         []Attribute   `json:"attrs"`              // Additional attributes
+	AdminIdentity      AdminIdentity `json:"adminIdentity"`        // Admin credentials
+	UserRegistrationID string        `json:"userRegistrationId"`   // New user ID
+	UserSecret         string        `json:"userSecret,omitempty"` // Optional secret (auto-generated if empty)
+	Type               string        `json:"type"`                 // Identity type (client, peer, orderer, admin)
+	Affiliation        string        `json:"affiliation"`          // User affiliation
+	Attributes         []Attribute   `json:"attrs"`                // Additional attributes
 }
 
 // Attribute represents a user attribute
