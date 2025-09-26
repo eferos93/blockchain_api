@@ -10,21 +10,40 @@ type Attribute {
     value: string
 }
 
-type Response {
+type Error {
+    code: int
+    message: string
+}
+
+type Message {
+    code: int
+    message: string
+}
+
+type CAResponse {
+    result[0, 1] {
+        secret: string
+    }
+    success: bool
+    errors[0, *]: Error
+    messages[0, *]: Message
+}
+
+type RegisterResponse {
     success: bool
     message: string
     result {
-        CA: any
-        TLSCA: any //empty string for now
+        CA: CAResponse
+        TLSCA: undefined //empty string for now
     }
 }
 
 type UserRegistrationData {
     adminIdentity: AdminIdentity
     userRegistrationId: string
-    userSecret[0,1]: string
+    userSecret[0, 1]: string
     type: string
-    affiliation[0,1]: string
+    affiliation[0,1 ]: string
     attrs[0, *]: Attribute
 }
 
@@ -42,16 +61,61 @@ type UserProfileData {
     attributes: Attributes
 }
 
+type EnrollmentRequest {
+    enrollmentId: string
+    secret: string
+    profile[0,1]: string
+    csrInfo {
+        cn: string //commonname
+        names[0, *] {
+            C: string //country
+            ST: string //state or province
+            L: string //locality or city
+            O: string //organization
+            OU: string //organizational unit
+        }
+        hosts[0, *]: string
+    }
+}
+
+type EnrollResponse {
+    CaEnrollResp: {
+        result {
+            Cert: string
+        
+            ServerInfo {
+                CAName: string
+                CAChain: string
+                IssuerPublicKey: string
+                IssuerRevocationPublicKey: string
+                Version: string
+            }
+        }
+        success: bool 
+        errors[0, *]: Error
+        messages[0, *]: Message
+    }
+
+    TLSCAEnrollResp: undefined //empty string for now
+    success: bool
+}
+
+
+type RegistrationResponse {
+    success: bool
+    secret?: string
+}
+
 
 interface CAServiceInterface {
     RequestResponse:
-        registerUser()()
+        registerUser(UserProfileData)(RegistrationResponse)
 }
 
 interface CAInterface {
     RequestResponse:
-        registerUser(UserRegistrationData)(Response)
-        enrollUser(UserEnrollmentRequest)(Response)
+        registerUser(UserRegistrationData)(RegisterResponse)
+        enrollUser(EnrollmentRequest)(EnrollResponse)
 }
 
 constants {
@@ -62,6 +126,12 @@ constants {
     BSCOrg = "Bsc"
     UBOrg = "Ub"
     adminIdentityFile = "adminIdentity.json"
+    bscName << {
+        C = "ES"
+        ST = "Catalunya"
+        L = "Barcelona"
+        O = "bsc"
+    }
 }
 
 service CAClient {
@@ -97,8 +167,29 @@ service CAClient {
                 affiliation = affiliation
             }
             registerUser@CAClient(userRegData)(regResponse)
+            //TODO error handling
+            enrollRequest << {
+                enrollmentId -> userInfo.email
+                secret -> regResponse.result.CA.result.secret
+                csrInfo << {
+                    cn -> userInfo.email
+                    names[0] << {
+                        C: bscName.C
+                        ST: bscName.ST
+                        L: bscName.L
+                        O: org
+                        OU: "client"
+                    }
+                    hosts[0] = "localhost"
+                    hosts[1] = userInfo.email + org + ".dt4h.com"
+                } 
+            }
+            enrollUser@CAClient(enrollRequest)(enrollmentResponse)
 
-
+            registerUserResponse << {
+                success = enrollmentResponse.success
+                secret = regResponse.result.CA.result.secret
+            }
         }
     }
 }

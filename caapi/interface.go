@@ -11,10 +11,10 @@ type CAConfig struct {
 
 // EnrollmentRequest represents a request to enroll a new identity
 type EnrollmentRequest struct {
-	EnrollmentID string  `json:"enrollmentId"` // User ID to enroll
-	Secret       string  `json:"secret"`       // Enrollment secret
-	Profile      string  `json:"profile"`      // Certificate profile (optional)
-	CSRInfo      CSRInfo `json:"csrInfo"`      // Certificate signing request info
+	EnrollmentID string  `json:"enrollmentId"`      // User ID to enroll
+	Secret       string  `json:"secret"`            // Enrollment secret
+	Profile      string  `json:"profile,omitempty"` // Certificate profile (optional)
+	CSRInfo      CSRInfo `json:"csrInfo"`           // Certificate signing request info
 }
 
 type EnrollmentRequestREST struct {
