@@ -1,4 +1,4 @@
-# blockchain_api
+# Athena Blockchain Api
 
 ## Session Keys
 
