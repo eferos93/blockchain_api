@@ -64,15 +64,15 @@ interface KeycloakServerInterface {
 
 type Token: string 
 
-type BcSecretData {
+type NewUserAttributes {
     token: Token
-    bcsecret: string
+    attributes: string
 }
 
 interface KeycloakServiceInterface {
     RequestResponse:
         isUserRegistered(Token)(bool)
-        updateUserData(BcSecretData)(bool)
+        updateUserData(NewUserAttributes)(bool)
         getUserData(Token)(UserProfileData)
 }
 
@@ -103,7 +103,7 @@ service Keycloak {
             }
             osc.PutUserProfileData << {
                 alias = "/auth/realms/datatools4heart/account/"
-                method = "get"
+                method = "post"
                 format = "json"
                 requestHeaders.("Accept") = "application/json"
                 requestHeaders.("Authorization") = "Bearer %!{token}"
@@ -122,11 +122,9 @@ service Keycloak {
             GetUserProfileData@KeycloakServerPort()(userProfileData)
             success = is_defined(userProfileData.attributes.bcsecret)
         }
-        updateUserData(BcSecretData)(success) {
-            token -> BcSecretData.token
-            GetUserProfileData@KeycloakServerPort()(userProfileData)
-            userProfileData.attributes.bcsecret = bcsecret
-            PutUserProfileData@KeycloakServerPort(userProfileData)(success)
+        updateUserData(newUserAttr)(success) {
+            token -> newUserAttr.token
+            PutUserProfileData@KeycloakServerPort({ attributes = newUserAttributes.attributes })(success)
         }
         getUserData(token)(userProfileData) {
             GetUserProfileData@KeycloakServerPort()(userProfileData)
