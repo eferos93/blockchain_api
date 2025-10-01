@@ -98,14 +98,14 @@ service Keycloak {
                 requestHeaders.("Accept") = "application/json"
             }
             osc.GetUserProfileData << {
-                alias = "/auth/realms/datatools4heart/account/"
+                alias = "auth/realms/datatools4heart/account/"
                 method = "get"
                 format = "json"
                 requestHeaders.("Accept") = "application/json"
                 requestHeaders.("Authorization") = "Bearer %!{token}"
             }
             osc.PutUserProfileData << {
-                alias = "/auth/realms/datatools4heart/account/"
+                alias = "auth/realms/datatools4heart/account/"
                 method = "post"
                 format = "json"
                 requestHeaders.("Accept") = "application/json"
