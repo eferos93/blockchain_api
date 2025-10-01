@@ -109,7 +109,7 @@ type RegistrationResponse {
 
 interface CAServiceInterface {
     RequestResponse:
-        registerUser(UserProfileData)(RegistrationResponse)
+        createUser(UserProfileData)(RegistrationResponse)
 }
 
 interface CAInterface {
@@ -143,12 +143,20 @@ service CAClient {
     }
 
     outputPort CAClient {
-        protocol: http
+        protocol: http {
+            format = "json"
+            osc.registerUser << {
+                alias = "fabricCA/register"
+            }
+            osc.enrollUser << {
+                alias = "fabricCA/enroll"
+            }
+        }
         interfaces: CAInterface
     }
 
     main {
-        registerUser(userInfo)(registerUserResponse) {
+        createUser(userInfo)(registerUserResponse) {
             if (userInfo.attributes.institution == "Athena Research Center") {
                 CAClient.location = ARCCALocation
                 org -> ARCOrg

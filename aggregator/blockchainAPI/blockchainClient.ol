@@ -31,6 +31,10 @@ interface BlockchainServiceInterface {
 }
 
 
+constants {
+    BSCAPI = "socket://localhost:3000"
+}
+
 service BlockchainAPI {
     execution: concurrent
 
@@ -64,6 +68,7 @@ service BlockchainAPI {
 
     main {
         executeTransaction(transactionReq)(response) {
+            BlockchainAPI.location = BSCAPI
             initialize@BlockchainAPI(transactionReq.transaction)(initResponse)
             if (transactionReq.type == "query") {
                 query@BlockchainAPIClientPort(transactionReq.transaction)(response)
