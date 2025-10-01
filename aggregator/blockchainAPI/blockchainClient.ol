@@ -1,3 +1,6 @@
+from console import Console 
+from string_utils import StringUtils
+
 type InitializeRequest {
     secret: string
     enrollmentId: string
@@ -32,10 +35,15 @@ interface BlockchainServiceInterface {
 
 
 constants {
-    BSCAPI = "socket://localhost:3000"
+    ARCLocation = "socket://localhost:7070" //TODO this will not work, because its an orderer, need to point to peer
+    BSCCALocation = "socket://localhost:8081"
+    UBCALocation = "socket://localhost:9051"
 }
 
 service BlockchainAPI {
+    embed Console
+    embed StringUtils
+
     execution: concurrent
 
     outputPort BlockchainAPIClientPort {
@@ -68,13 +76,22 @@ service BlockchainAPI {
 
     main {
         executeTransaction(transactionReq)(response) {
-            BlockchainAPI.location = BSCAPI
-            initialize@BlockchainAPI(transactionReq.transaction)(initResponse)
+            if (transactionReq.institution == "Athena Research Center") {
+                BlockchainAPIClientPort.location = ARCLocation
+            } else if (transactionReq.institution == "Barcelona Supercomputing Center") {
+                BlockchainAPIClientPort.location = BSCCALocation
+            } else if (transactionReq.institution == "University of Barcelona") {
+                BlockchainAPIClientPort.location = UBCALocation
+            }
+            initialize@BlockchainAPI({ enrollmentId = transactionReq.enrollmentId, secret = transactionReq.secret })(initResponse)
             if (transactionReq.type == "query") {
                 query@BlockchainAPIClientPort(transactionReq.transaction)(response)
             } else if (transactionReq.type == "invoke") {
                 invoke@BlockchainAPIClientPort(transactionReq.transaction)(response)
             }
+            valueToPrettyString@StringUtils(response)(responseStr)
+            println@Console("Transaction response:")()
+            println@Console(responseStr)()
         }
     }
 }

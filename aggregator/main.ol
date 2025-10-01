@@ -3,6 +3,7 @@ from file import File
 from .blockchainAPI.CAClient import CAClient
 from .blockchainAPI.blockchainClient import BlockchainAPI
 from console import Console
+from string_utils import StringUtils
 
 interface AggregatorInterface {
     RequestResponse: 
@@ -26,13 +27,16 @@ type TransactionRequest {
     transaction: ExecuteTransaction
 }
 
-type TransactionResponse: any
+//TODO define proper response type
+type TransactionResponse: undefined
 
 service Aggregator {
     embed Keycloak
     embed File
     embed CAClient
     embed BlockchainAPI
+    embed StringUtils
+    embed Console
     
     execution: concurrent
 
@@ -65,10 +69,11 @@ service Aggregator {
                 bcSecret -> userInfo.attributes.bcsecret
                 username -> userInfo.email
             }
-            executeTransaction@BlockchainAPI({ enrollmentId = username, secret = bcSecret, transaction << transactionReq.transaction })(response)
+            executeTransaction@BlockchainAPI({ enrollmentId = username, secret = bcSecret, institution = userInfo.attributes.institution, transaction << transactionReq.transaction })(response)
             
             println@Console("Transaction executed")()
-            
+            valueToPrettyString@StringUtils(response)(responseStr)
+            println@Console(responseStr)()
        }]
 	}
 }
