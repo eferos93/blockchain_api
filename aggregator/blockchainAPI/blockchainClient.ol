@@ -25,7 +25,7 @@ interface BlockchainAPIClientInterface {
         initialize(InitializeRequest)(string),
         query(TransactionRequest)(undefined),
         invoke(TransactionRequest)(undefined),
-        close()(string)
+        close(undefined)(string)
 }
 
 interface BlockchainServiceInterface {
