@@ -23,7 +23,7 @@ type VAToken {
     refresh_expires_in: int
     refresh_token: string
     token_type: string
-    not-before-policy: int
+    "not-before-policy": int // - is a special character, so it needs to be quoted
     session_state: string
     scope: string
 }
@@ -34,7 +34,7 @@ type CAToken {
     refresh_expires_in: int
     token_type: string
     id_token: string
-    not-before-policy: int
+    "not-before-policy": int // - is a special character, so it needs to be quoted
     session_state: string
     scope: string
 }
