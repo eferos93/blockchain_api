@@ -128,6 +128,8 @@ constants {
 }
 
 service CAClient {
+    embed File as File 
+    
     execution: concurrent
 
     inputPort CAService {
