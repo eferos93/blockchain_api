@@ -22,9 +22,9 @@ type ExecuteTransaction {
 
 interface BlockchainAPIClientInterface {
     RequestResponse:
-        initialize(InitializeRequest)(string)
-        query(TransactionRequest)(undefined)
-        invoke(TransactionRequest)(undefined)
+        initialize(InitializeRequest)(string),
+        query(TransactionRequest)(undefined),
+        invoke(TransactionRequest)(undefined),
         close()(string)
 }
 

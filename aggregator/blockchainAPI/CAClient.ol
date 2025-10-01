@@ -114,7 +114,7 @@ interface CAServiceInterface {
 
 interface CAInterface {
     RequestResponse:
-        registerUser(UserRegistrationData)(RegisterResponse)
+        registerUser(UserRegistrationData)(RegisterResponse),
         enrollUser(EnrollmentRequest)(EnrollResponse)
 }
 

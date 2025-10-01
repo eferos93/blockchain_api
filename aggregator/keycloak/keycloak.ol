@@ -56,9 +56,9 @@ type UserProfileData {
 
 interface KeycloakServerInterface {
     RequestResponse:
-        GetVaToken(VATokenRequest)(VAToken)
-        GetCAToken(CATokenRequest)(CAToken)
-        GetUserProfileData(void)(UserProfileData)
+        GetVaToken(VATokenRequest)(VAToken),
+        GetCAToken(CATokenRequest)(CAToken),
+        GetUserProfileData(void)(UserProfileData),
         PutUserProfileData(UpdateUserProfileRequest)(Success)
 }
 
@@ -71,8 +71,8 @@ type NewUserAttributes {
 
 interface KeycloakServiceInterface {
     RequestResponse:
-        isUserRegistered(Token)(bool)
-        updateUserData(NewUserAttributes)(bool)
+        isUserRegistered(Token)(bool),
+        updateUserData(NewUserAttributes)(bool),
         getUserData(Token)(UserProfileData)
 }
 
