@@ -53,6 +53,9 @@ type UserProfileData {
     attributes: Attributes
 }
 
+type UpdateUserProfileRequest {
+    attributes: Attributes
+}
 
 interface KeycloakServerInterface {
     RequestResponse:
