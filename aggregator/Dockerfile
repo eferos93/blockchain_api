@@ -5,4 +5,4 @@ COPY . .
 
 EXPOSE 8099
 
-CMD ["npm", "start"]
+CMD ["jolie", "main.ol", "--trace"]

@@ -193,6 +193,16 @@ services:
         read_only: true
     profiles:
       - test-filestore
+    
+  aggregator_service:
+    build: ./aggregator
+    container_name: blockchain-api-aggregator
+    networks:
+      - blockchain-api-network
+    ports:
+      - "8099:8099"
+    profiles:
+      - test-filestore
 
 volumes:
   openbao-athena-data:
