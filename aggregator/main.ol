@@ -63,6 +63,7 @@ service Aggregator {
                     updateUserData@Keycloak({ token = transactionReq.accessToken, attributes = userInfo.attributes })(success)
                 } else {
                     // handle registration failure
+                    println@Console("User registration failed")()
                 }
             } else {
                 getUserData@Keycloak(transactionReq.accessToken)(userInfo)
