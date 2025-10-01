@@ -117,7 +117,7 @@ service Keycloak {
 
     inputPort KeycloakServicePort {
         location: "local"
-        interfaces: KeycloakServerInterface
+        interfaces: KeycloakServiceInterface
     }
 
     main {
