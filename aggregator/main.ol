@@ -1,4 +1,4 @@
-from keycloak.keycloak import Keycloak
+from .keycloak.keycloak import Keycloak
 from file import File
 from .blockchainAPI.CAClient import CAClient
 from .blockchainAPI.blockchainClient import BlockchainAPI
