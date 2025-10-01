@@ -46,7 +46,7 @@ service BlockchainAPI {
 
     execution: concurrent
 
-    outputPort BlockchainAPIClientPort {
+    outputPort BlockchainAPI {
         protocol: http {
             format = "json"
             osc.initialize << {
@@ -85,9 +85,9 @@ service BlockchainAPI {
             }
             initialize@BlockchainAPI({ enrollmentId = transactionReq.enrollmentId, secret = transactionReq.secret })(initResponse)
             if (transactionReq.type == "query") {
-                query@BlockchainAPIClientPort(transactionReq.transaction)(response)
+                query@BlockchainAPI(transactionReq.transaction)(response)
             } else if (transactionReq.type == "invoke") {
-                invoke@BlockchainAPIClientPort(transactionReq.transaction)(response)
+                invoke@BlockchainAPI(transactionReq.transaction)(response)
             }
             valueToPrettyString@StringUtils(response)(responseStr)
             println@Console("Transaction response:")()
