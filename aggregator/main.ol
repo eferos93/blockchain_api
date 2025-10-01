@@ -7,8 +7,8 @@ from string_utils import StringUtils
 
 interface AggregatorInterface {
     RequestResponse: 
-        executeTransaction(TransactionRequest)(TransactionResponse)
-}
+        executeTransaction(TransactionRequest)(undefined) //TODO define proper response type
+} 
 
 type Transaction {
     chaincodeid: string
@@ -27,8 +27,7 @@ type TransactionRequest {
     transaction: ExecuteTransaction
 }
 
-//TODO define proper response type
-type TransactionResponse: undefined
+
 
 service Aggregator {
     embed Keycloak
