@@ -3,6 +3,6 @@ FROM jolielang/jolie:1.13.0
 WORKDIR /app
 COPY . .
 
-EXPOSE 3000
+EXPOSE 8099
 
 CMD ["npm", "start"]

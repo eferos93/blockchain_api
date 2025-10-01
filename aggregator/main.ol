@@ -36,14 +36,12 @@ service Aggregator {
     
     execution: concurrent
 
-    outputPort blockchainAPI {
-        location: "local"
-        interfaces: BlockchainAPIInterface
-    }
-
     inputPort ip {
-        location: "local"
-        protocol: sodep
+        location: "socket://localhost:8099"
+        protocol: http {
+            debug = true
+            contentType = "json"
+        }
         interfaces: AggregatorInterface
     }
 
