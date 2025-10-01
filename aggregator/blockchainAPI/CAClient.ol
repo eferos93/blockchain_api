@@ -79,7 +79,7 @@ type EnrollmentRequest {
 }
 
 type EnrollResponse {
-    CaEnrollResp: {
+    CaEnrollResp {
         result {
             Cert: string
         
@@ -95,8 +95,7 @@ type EnrollResponse {
         errors[0, *]: Error
         messages[0, *]: Message
     }
-
-    TLSCAEnrollResp: undefined //empty string for now
+    TLSCAEnrollResp: string //empty string for now
     success: bool
 }
 
