@@ -30,13 +30,13 @@ type TransactionRequest {
 
 
 service Aggregator {
-    embed Keycloak
-    embed File
-    embed CAClient
-    embed BlockchainAPI
-    embed StringUtils
-    embed Console
-    
+    embed Keycloak as Keycloak
+    embed File as File
+    embed CAClient as CAClient
+    embed BlockchainAPI as BlockchainAPI
+    embed StringUtils as StringUtils
+    embed Console as Console
+
     execution: concurrent
 
     inputPort ip {

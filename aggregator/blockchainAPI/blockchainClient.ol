@@ -41,8 +41,8 @@ constants {
 }
 
 service BlockchainAPI {
-    embed Console
-    embed StringUtils
+    embed Console as Console
+    embed StringUtils as StringUtils
 
     execution: concurrent
 
