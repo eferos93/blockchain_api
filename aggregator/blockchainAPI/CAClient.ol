@@ -125,12 +125,6 @@ constants {
     BSCOrg = "Bsc",
     UBOrg = "Ub",
     adminIdentityFile = "adminIdentity.json",
-    bscName << {
-        C = "ES"
-        ST = "Catalunya"
-        L = "Barcelona"
-        O = "bsc"
-    }
 }
 
 service CAClient {
@@ -153,7 +147,14 @@ service CAClient {
         }
         interfaces: CAInterface
     }
-
+    init {
+        global.name.Bsc << {
+            C = "ES"
+            ST = "Catalunya"
+            L = "Barcelona"
+            O = "bsc"
+        }
+    }
     main {
         createUser(userInfo)(registerUserResponse) {
             if (userInfo.attributes.institution == "Athena Research Center") {
@@ -181,11 +182,11 @@ service CAClient {
                 csrInfo << {
                     cn -> userInfo.email
                     names[0] << {
-                        C: bscName.C
-                        ST: bscName.ST
-                        L: bscName.L
-                        O: org
-                        OU: "client"
+                        C = global.name.( org ).C
+                        ST = global.name.( org ).ST
+                        L = global.name.( org ).L
+                        O = org
+                        OU = "client"
                     }
                     hosts[0] = "localhost"
                     hosts[1] = userInfo.email + org + ".dt4h.com"
