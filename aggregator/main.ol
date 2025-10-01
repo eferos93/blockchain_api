@@ -53,7 +53,7 @@ service Aggregator {
        [executeTransaction(transactionReq)(TransactionResponse) {
             isUserRegistered@Keycloak(transactionReq.accessToken)(isRegistered)
             if (!isRegistered) {
-                getUserInfo@Keycloak(transactionReq.accessToken)(userInfo)
+                getUserData@Keycloak(transactionReq.accessToken)(userInfo)
                 createUser@CAClient(userInfo)(registerUserResponse)
                 if (registerUserResponse.success) {
                     userInfo.attributes.bcsecret = registerUserResponse.secret
