@@ -118,13 +118,13 @@ interface CAInterface {
 }
 
 constants {
-    ARCCALocation = "socket://localhost:8004"
-    BSCCALocation = "socket://localhost:9004"
-    UBCALocation = "socket://localhost:10004"
-    ARCOrg = "Arc"
-    BSCOrg = "Bsc"
-    UBOrg = "Ub"
-    adminIdentityFile = "adminIdentity.json"
+    ARCCALocation = "socket://localhost:8004",
+    BSCCALocation = "socket://localhost:9004",
+    UBCALocation = "socket://localhost:10004",
+    ARCOrg = "Arc",
+    BSCOrg = "Bsc",
+    UBOrg = "Ub",
+    adminIdentityFile = "adminIdentity.json",
     bscName << {
         C = "ES"
         ST = "Catalunya"

@@ -35,8 +35,8 @@ interface BlockchainServiceInterface {
 
 
 constants {
-    ARCLocation = "socket://localhost:7070" //TODO this will not work, because its an orderer, need to point to peer
-    BSCCALocation = "socket://localhost:8081"
+    ARCLocation = "socket://localhost:7070", //TODO this will not work, because its an orderer, need to point to peer
+    BSCCALocation = "socket://localhost:8081",
     UBCALocation = "socket://localhost:9051"
 }
 
