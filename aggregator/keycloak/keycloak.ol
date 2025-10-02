@@ -78,7 +78,7 @@ interface KeycloakServiceInterface {
 }
 
 service Keycloak {
-    execution: concurrent
+    execution: sequential
     outputPort KeycloakServerPort {
         location: "socket://inb.bsc.es:443/"
         protocol: https {
@@ -89,6 +89,7 @@ service Keycloak {
             addHeader << {
                     // header[0] << "Content-Type" { value="application/json" }
                     header[0] << "Accept" { value="application/json" }
+                    header[1] << "Authorization" { value -> authToken }
             }
             // osc.GetVaToken << {
             //     alias = "auth/realms/datatools4heart/protocol/openid-connect/token"
@@ -110,8 +111,8 @@ service Keycloak {
                 // format = "json"
                 // addHeader << {
                 //     header[0] << "Accept" { value="application/json" }
-                //     header[1] << "Authorization" { value="Bearer " + token }
-                //     header[2] << "Content-Type" { value="application/json" }
+                //     header[1] << "Content-Type" { value="application/json" }
+                //     header[2] << "Authorization" { value -> global.authToken }
                 // }
 
             }
@@ -131,16 +132,16 @@ service Keycloak {
 
     main {
         isUserRegistered(token)(success) {
-            KeycloakServerPort.protocol.https.addHeader.header[1] << "Authorization" { value="Bearer " + token }
+            authToken = "Bearer " + token
             GetUserProfileData@KeycloakServerPort()(userProfileData)
             success = is_defined(userProfileData.attributes.bcsecret)
         }
         updateUserData(newUserAttr)(success) {
-            KeycloakServerPort.protocol.https.addHeader.header[1] << "Authorization" { value="Bearer " + newUserAttr.token }
+            authToken = "Bearer " + newUserAttr.token
             PutUserProfileData@KeycloakServerPort({ attributes = newUserAttributes.attributes })(success)
         }
         getUserData(token)(userProfileData) {
-            KeycloakServerPort.protocol.https.addHeader.header[1] << "Authorization" { value="Bearer " + token }
+            authToken = "Bearer " + token
             GetUserProfileData@KeycloakServerPort()(userFullData)
             userProfileData << {
                 id = userFullData.id
