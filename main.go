@@ -1,11 +1,15 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"blockchain-api/caapi"
 	clientapi "blockchain-api/client"
@@ -17,10 +21,20 @@ import (
 
 // IdentityInfo represents an identity to load
 type IdentityInfo struct {
-	Name         string // e.g., "admin0", "peer0", etc.
-	Organization string // e.g., "bsc", "ub"
-	Username     string // Combined name, e.g., "bsc-admin0"
-	Password     string // Default password for testing
+	Name         string `json:"name"`         // e.g., "admin0", "peer0", etc.
+	Organization string `json:"organization"` // e.g., "bsc", "ub"
+	Username     string `json:"username"`     // Combined name, e.g., "bsc-admin0"
+	Password     string `json:"password"`     // Default password for testing
+}
+
+// StandardCredentials represents the structure of standard_credentials.json
+type StandardCredentials struct {
+	Organizations map[string]OrganizationCredentials `json:"organizations"`
+}
+
+// OrganizationCredentials represents credentials for a single organization
+type OrganizationCredentials struct {
+	Identities []IdentityInfo `json:"identities"`
 }
 
 func main() {
@@ -68,29 +82,182 @@ func main() {
 	caRouter.HandleFunc("/info", caapi.InfoHandler).Methods("POST")
 
 	fmt.Println("Listening (http://localhost:3000/)...")
+
+	go func() {
+		time.Sleep(5 * time.Second) // Wait for server to be ready
+		username := os.Getenv("BSC_TEST_USER")
+		pwd := os.Getenv("BSC_TEST_PWD")
+		if err := RegisterBSCUser(username, pwd); err != nil {
+			log.Printf("Failed to register user: %v", err)
+		}
+	}()
+
 	http.ListenAndServe(":3000", r)
+}
+
+// RegisterBSCUser registers a new user in the BSC organization using the CA API
+// and then enrolls them to obtain their certificates
+func RegisterBSCUser(username, secret string) error {
+	// Get admin credentials from environment or use defaults
+	adminUsername := os.Getenv("BSC_REG_USERNAME")
+	if adminUsername == "" {
+		adminUsername = "admin0" // Default BSC admin
+	}
+
+	adminPassword := os.Getenv("BSC_REG_PASSWORD")
+	if adminPassword == "" {
+		adminPassword = "admin0pw" // Default BSC admin password
+	}
+
+	// Get CA API URL
+	apiURL := os.Getenv("BLOCKCHAIN_API_URL")
+	if apiURL == "" {
+		apiURL = "http://localhost:3000" // Default local URL
+	}
+
+	httpClient := &http.Client{Timeout: 30 * time.Second}
+
+	// Step 1: Register the user
+	log.Printf("Registering user %s in BSC organization...", username)
+
+	regRequest := caapi.RegistrationRequest{
+		AdminIdentity: caapi.AdminIdentity{
+			EnrollmentID: adminUsername,
+			Secret:       adminPassword,
+		},
+		UserRegistrationID: username,
+		UserSecret:         secret,
+		Type:               "client", // User type
+	}
+
+	regReqBody, err := json.Marshal(regRequest)
+	if err != nil {
+		return fmt.Errorf("failed to marshal registration request: %w", err)
+	}
+
+	regURL := fmt.Sprintf("%s/fabricCA/register", apiURL)
+	regReq, err := http.NewRequest("POST", regURL, bytes.NewBuffer(regReqBody))
+	if err != nil {
+		return fmt.Errorf("failed to create registration request: %w", err)
+	}
+	regReq.Header.Set("Content-Type", "application/json")
+
+	regResp, err := httpClient.Do(regReq)
+	if err != nil {
+		return fmt.Errorf("failed to send registration request: %w", err)
+	}
+	defer regResp.Body.Close()
+
+	regBody, err := io.ReadAll(regResp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read registration response: %w", err)
+	}
+
+	if regResp.StatusCode != http.StatusOK && regResp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("registration failed with status %d: %s", regResp.StatusCode, string(regBody))
+	}
+
+	var regResponse map[string]interface{}
+	if err := json.Unmarshal(regBody, &regResponse); err != nil {
+		return fmt.Errorf("failed to parse registration response: %w", err)
+	}
+
+	if success, ok := regResponse["success"].(bool); !ok || !success {
+		return fmt.Errorf("registration failed: %v", regResponse)
+	}
+
+	log.Printf("✓ Successfully registered user %s in BSC organization", username)
+
+	// Step 2: Enroll the user to get certificates
+	log.Printf("Enrolling user %s to obtain certificates...", username)
+
+	enrollRequest := caapi.EnrollmentRequest{
+		EnrollmentID: username,
+		Secret:       secret,
+		CSRInfo: caapi.CSRInfo{
+			CN: username,
+			Names: []caapi.Name{
+				{
+					C:  "GR",
+					ST: "Attica",
+					L:  "Athens",
+					O:  "bsc",
+					OU: "client",
+				},
+			},
+			Hosts: []string{"localhost", username + ".bsc.dt4h.com"},
+		},
+	}
+
+	enrollReqBody, err := json.Marshal(enrollRequest)
+	if err != nil {
+		return fmt.Errorf("failed to marshal enrollment request: %w", err)
+	}
+
+	enrollURL := fmt.Sprintf("%s/fabricCA/enroll", apiURL)
+	enrollReq, err := http.NewRequest("POST", enrollURL, bytes.NewBuffer(enrollReqBody))
+	if err != nil {
+		return fmt.Errorf("failed to create enrollment request: %w", err)
+	}
+	enrollReq.Header.Set("Content-Type", "application/json")
+
+	enrollResp, err := httpClient.Do(enrollReq)
+	if err != nil {
+		return fmt.Errorf("failed to send enrollment request: %w", err)
+	}
+	defer enrollResp.Body.Close()
+
+	enrollBody, err := io.ReadAll(enrollResp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read enrollment response: %w", err)
+	}
+
+	if enrollResp.StatusCode != http.StatusOK && enrollResp.StatusCode != http.StatusCreated {
+		return fmt.Errorf("enrollment failed with status %d: %s", enrollResp.StatusCode, string(enrollBody))
+	}
+
+	var enrollResponse map[string]interface{}
+	if err := json.Unmarshal(enrollBody, &enrollResponse); err != nil {
+		return fmt.Errorf("failed to parse enrollment response: %w", err)
+	}
+
+	if success, ok := enrollResponse["success"].(bool); !ok || !success {
+		return fmt.Errorf("enrollment failed: %v", enrollResponse)
+	}
+
+	log.Printf("✓ Successfully enrolled user %s - certificates obtained and stored", username)
+	log.Printf("✓ User %s is ready to use in BSC organization", username)
+
+	return nil
 }
 
 // LoadOrganizationIdentities loads all identities for a given organization into the file keystore
 func LoadOrganizationIdentities(organization string, keystore *keystore.KeystoreManager) error {
-	// Define available identities per organization
-	var identities []IdentityInfo
+	// Read credentials from JSON file
+	credentialsPath := os.Getenv("CREDENTIALS_FILE")
+	if credentialsPath == "" {
+		credentialsPath = "./standard_credentials.json" // Default path
+	}
 
-	switch organization {
-	case "bsc":
-		identities = []IdentityInfo{
-			{Name: "admin0", Organization: "bsc", Username: "admin0", Password: "admin0pw"},
-			{Name: "peer0", Organization: "bsc", Username: "peer0", Password: "peer0pw"},
-			{Name: "registrar0", Organization: "bsc", Username: "registrar0", Password: "registrar0pw"},
-			{Name: "blockclient", Organization: "bsc", Username: "blockclient", Password: "blockclientpw"},
-		}
-	case "ub":
-		identities = []IdentityInfo{
-			{Name: "admin0", Organization: "ub", Username: "admin0", Password: "admin0pw"},
-			{Name: "registrar0", Organization: "ub", Username: "registrar0", Password: "registrar0pw"},
-		}
-	default:
-		return fmt.Errorf("unsupported organization: %s", organization)
+	credentialsData, err := os.ReadFile(credentialsPath)
+	if err != nil {
+		return fmt.Errorf("failed to read credentials file %s: %w", credentialsPath, err)
+	}
+
+	var credentials StandardCredentials
+	if err := json.Unmarshal(credentialsData, &credentials); err != nil {
+		return fmt.Errorf("failed to parse credentials JSON: %w", err)
+	}
+
+	// Get identities for the specified organization
+	orgCreds, exists := credentials.Organizations[organization]
+	if !exists {
+		return fmt.Errorf("organization %s not found in credentials file", organization)
+	}
+
+	identities := orgCreds.Identities
+	if len(identities) == 0 {
+		return fmt.Errorf("no identities found for organization %s", organization)
 	}
 
 	fmt.Printf("Loading identities for organization: %s\n", organization)
@@ -119,7 +286,6 @@ func LoadOrganizationIdentities(organization string, keystore *keystore.Keystore
 		}
 		fmt.Printf("✓ Verified identity: %s (EnrollmentID: %s)\n", identity.Username, entry.EnrollmentID)
 	}
-
 	return nil
 }
 

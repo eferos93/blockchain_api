@@ -53,9 +53,11 @@ service Aggregator {
        [executeTransaction(transactionReq)(transactionResponse) {
             isUserRegistered@Keycloak(transactionReq.accessToken)(isRegistered)
             getUserData@Keycloak(transactionReq.accessToken)(userInfo)
+            createUser@CAClient(userInfo)(registerUserResponse)
+            
             if (!isRegistered) {
                 // getUserData@Keycloak(transactionReq.accessToken)(userInfo)
-                createUser@CAClient(userInfo)(registerUserResponse)
+                // createUser@CAClient(userInfo)(registerUserResponse)
                 if (registerUserResponse.success) {
                     userInfo.attributes.bcsecret = registerUserResponse.secret
                     bcSecret -> registerUserResponse.secret
@@ -66,7 +68,7 @@ service Aggregator {
                     println@Console("User registration failed")()
                 }
             } else {
-                createUser@CAClient(userInfo)(registerUserResponse)
+                // createUser@CAClient(userInfo)(registerUserResponse)
                 if (registerUserResponse.success) {
                     userInfo.attributes.bcsecret = registerUserResponse.secret
                     bcSecret -> registerUserResponse.secret

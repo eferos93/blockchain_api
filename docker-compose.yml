@@ -19,7 +19,7 @@ x-openbao-template: &openbao-template
     timeout: 10s
     retries: 3
   networks:
-    - blockchain-api-network
+    - dev
 
 x-blockchain-api-template: &blockchain-api-template
   build: .
@@ -27,7 +27,7 @@ x-blockchain-api-template: &blockchain-api-template
     - .env
   restart: unless-stopped
   networks:
-    - blockchain-api-network
+    - dev
 
 services:
   # OpenBao services for each organization
@@ -165,7 +165,7 @@ services:
       timeout: 10s
       retries: 3
     networks:
-      - blockchain-api-network
+      - dev
     profiles:
       - test
       - all
@@ -182,8 +182,8 @@ services:
       MSP_ID: "BscMSP"
       PEER_ENDPOINT: "dns:///localhost:9051"
       GATEWAY_PEER: "peer0.bsc.dt4h.com"
-      FABRIC_CA_URL: "${TEST_FABRIC_CA_URL:-https://localhost:10055}"
-      TLS_CA_URL: "${TEST_TLS_CA_URL:-https://localhost:10054}"
+      FABRIC_CA_URL: "${TEST_FABRIC_CA_URL}"
+      TLS_CA_URL: "${TEST_TLS_CA_URL}"
       FABRIC_CA_SKIP_TLS: "true"
       TLS_CA_SKIP_TLS: "true"
     volumes:
@@ -198,7 +198,7 @@ services:
     build: ./aggregator
     container_name: blockchain-api-aggregator
     networks:
-      - blockchain-api-network
+      - dev
     ports:
       - "8099:8099"
     profiles:
@@ -215,5 +215,7 @@ volumes:
     driver: local
 
 networks:
-  blockchain-api-network:
+  dev:
+    external: true
+    name: fabric_dev
     driver: bridge

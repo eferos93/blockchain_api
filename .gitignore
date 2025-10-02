@@ -29,3 +29,5 @@ secure-keystore/
 keycloak/curls.txt
 
 aggregator/node_modules/
+
+standard_credentials.json
