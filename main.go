@@ -225,7 +225,56 @@ func RegisterBSCUser(username, secret string) error {
 		return fmt.Errorf("enrollment failed: %v", enrollResponse)
 	}
 
+	// Step 3: Extract certificate and private key from keystore and save to files
+	log.Printf("Saving certificates to identity files for %s...", username)
+
+	// Retrieve the stored identity from keystore
+	keystoreEntry, err := keystore.GlobalKeystore.RetrieveKey(username, secret)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve enrolled identity from keystore: %w", err)
+	}
+
+	// Create directory structure: identities/bsc/<username>/msp/{keystore,signcerts,tlscacerts}
+	identitiesBasePath := os.Getenv("IDENTITIES_PATH")
+	if identitiesBasePath == "" {
+		identitiesBasePath = "./identities"
+	}
+
+	userIdentityPath := filepath.Join(identitiesBasePath, "bsc", username)
+	mspPath := filepath.Join(userIdentityPath, "msp")
+	keystorePath := filepath.Join(mspPath, "keystore")
+	signcertsPath := filepath.Join(mspPath, "signcerts")
+	tlscacertsPath := filepath.Join(mspPath, "tlscacerts")
+
+	// Create all directories
+	for _, dir := range []string{keystorePath, signcertsPath, tlscacertsPath} {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", dir, err)
+		}
+	}
+
+	// Write private key to keystore/key.pem
+	privateKeyPath := filepath.Join(keystorePath, "key.pem")
+	if err := os.WriteFile(privateKeyPath, keystoreEntry.PrivateKey, 0600); err != nil {
+		return fmt.Errorf("failed to write private key: %w", err)
+	}
+
+	// Write certificate to signcerts/cert.pem
+	certificatePath := filepath.Join(signcertsPath, "cert.pem")
+	if err := os.WriteFile(certificatePath, keystoreEntry.Certificate, 0644); err != nil {
+		return fmt.Errorf("failed to write certificate: %w", err)
+	}
+
+	// Write TLS CA certificate to tlscacerts/ca.crt
+	tlsCertPath := filepath.Join(tlscacertsPath, "ca.crt")
+	if len(keystoreEntry.TLSCertificate) > 0 {
+		if err := os.WriteFile(tlsCertPath, keystoreEntry.TLSCertificate, 0644); err != nil {
+			return fmt.Errorf("failed to write TLS CA certificate: %w", err)
+		}
+	}
+
 	log.Printf("✓ Successfully enrolled user %s - certificates obtained and stored", username)
+	log.Printf("✓ Identity files saved to: %s", userIdentityPath)
 	log.Printf("✓ User %s is ready to use in BSC organization", username)
 
 	return nil
