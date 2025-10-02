@@ -52,12 +52,9 @@ service Aggregator {
 	main {
        [executeTransaction(transactionReq)(transactionResponse) {
             isUserRegistered@Keycloak(transactionReq.accessToken)(isRegistered)
-            getUserData@Keycloak(transactionReq.accessToken)(userInfo)
-            createUser@CAClient(userInfo)(registerUserResponse)
-            
-            if (!isRegistered) {
-                // getUserData@Keycloak(transactionReq.accessToken)(userInfo)
-                // createUser@CAClient(userInfo)(registerUserResponse)
+            getUserData@Keycloak(transactionReq.accessToken)(userInfo)            
+            if (!is_defined(userInfo.attributes.bcSecret)) {
+                createUser@CAClient(userInfo)(registerUserResponse)
                 if (registerUserResponse.success) {
                     userInfo.attributes.bcsecret = registerUserResponse.secret
                     bcSecret -> registerUserResponse.secret
@@ -67,18 +64,9 @@ service Aggregator {
                     // handle registration failure
                     println@Console("User registration failed")()
                 }
-            } else {
-                // createUser@CAClient(userInfo)(registerUserResponse)
-                if (registerUserResponse.success) {
-                    userInfo.attributes.bcsecret = registerUserResponse.secret
-                    bcSecret -> registerUserResponse.secret
-                    username -> userInfo.email
-                    updateUserData@Keycloak({ token = transactionReq.accessToken, attributes = userInfo.attributes })(success)
-                } else {
-                    // handle registration failure
-                    println@Console("User registration on the CA failed")()
-                }
             }
+            username -> userInfo.email
+            bcSecret -> userInfo.attributes.bcsecret
             executeTransaction@BlockchainAPI({ enrollmentId = username, secret = bcSecret, institution = userInfo.attributes.institution, transaction << transactionReq.transaction })(transactionResponse)
             
             println@Console("Transaction executed")()
