@@ -92,7 +92,7 @@ func TestUpdateUserProfile(t *testing.T) {
 		Attributes: keycloak.UserAttributes{
 			GivenName:   "Konstantinos",
 			FamilyName:  "Filippopolitis",
-			Institution: "Athena Research Center",
+			Institution: "Barcelona Supercomputing Center",
 			BcSecret:    bcSecret,
 		},
 	}

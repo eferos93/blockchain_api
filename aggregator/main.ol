@@ -42,7 +42,7 @@ service Aggregator {
     inputPort ip {
         location: "socket://localhost:8099"
         protocol: http {
-            debug = true
+            debug = false
             contentType = "json"
         }
         interfaces: AggregatorInterface
@@ -50,7 +50,7 @@ service Aggregator {
 
 
 	main {
-       [executeTransaction(transactionReq)(TransactionResponse) {
+       [executeTransaction(transactionReq)(transactionResponse) {
             isUserRegistered@Keycloak(transactionReq.accessToken)(isRegistered)
             if (!isRegistered) {
                 getUserData@Keycloak(transactionReq.accessToken)(userInfo)
@@ -65,14 +65,21 @@ service Aggregator {
                     println@Console("User registration failed")()
                 }
             } else {
-                getUserData@Keycloak(transactionReq.accessToken)(userInfo)
-                bcSecret -> userInfo.attributes.bcsecret
-                username -> userInfo.email
+                createUser@CAClient(userInfo)(registerUserResponse)
+                if (registerUserResponse.success) {
+                    userInfo.attributes.bcsecret = registerUserResponse.secret
+                    bcSecret -> registerUserResponse.secret
+                    username -> userInfo.email
+                    updateUserData@Keycloak({ token = transactionReq.accessToken, attributes = userInfo.attributes })(success)
+                } else {
+                    // handle registration failure
+                    println@Console("User registration on the CA failed")()
+                }
             }
-            executeTransaction@BlockchainAPI({ enrollmentId = username, secret = bcSecret, institution = userInfo.attributes.institution, transaction << transactionReq.transaction })(response)
+            executeTransaction@BlockchainAPI({ enrollmentId = username, secret = bcSecret, institution = userInfo.attributes.institution, transaction << transactionReq.transaction })(transactionResponse)
             
             println@Console("Transaction executed")()
-            valueToPrettyString@StringUtils(response)(responseStr)
+            valueToPrettyString@StringUtils(transactionResponse)(responseStr)
             println@Console(responseStr)()
        }]
 	}
