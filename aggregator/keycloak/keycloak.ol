@@ -40,10 +40,10 @@ type CAToken {
 }
 
 type Attributes {
-    given_name: string
-    family_name: string
-    institution: string
-    bcsecret: string
+    given_name[1,*]: string
+    family_name[1,*]: string
+    institution[1,*]: string
+    bcsecret[1,*]: string
 }
 
 type UserProfileData {
@@ -59,57 +59,66 @@ type UpdateUserProfileRequest {
 
 interface KeycloakServerInterface {
     RequestResponse:
-        GetVaToken(VATokenRequest)(VAToken),
-        GetCAToken(CATokenRequest)(CAToken),
-        GetUserProfileData(void)(UserProfileData),
+        // GetVaToken(VATokenRequest)(VAToken),
+        // GetCAToken(CATokenRequest)(CAToken),
+        GetUserProfileData(void)(undefined),
         PutUserProfileData(UpdateUserProfileRequest)(undefined) //TODO define proper response type
 }
 
-type Token: string 
-
 type NewUserAttributes {
-    token: Token
+    token: string
     attributes: string
 }
 
 interface KeycloakServiceInterface {
     RequestResponse:
-        isUserRegistered(Token)(bool),
+        isUserRegistered(string)(bool),
         updateUserData(NewUserAttributes)(bool),
-        getUserData(Token)(UserProfileData)
+        getUserData(string)(UserProfileData)
 }
 
 service Keycloak {
     execution: concurrent
     outputPort KeycloakServerPort {
-        location: "socket://inb.bsc.es/"
+        location: "socket://inb.bsc.es:443/"
         protocol: https {
-            osc.GetVaToken << {
-                alias = "auth/realms/datatools4heart/protocol/openid-connect/token"
-                method = "post"
-                format = "x-www-form-urlencoded" //"application/x-www-form-urlencoded"
-                requestHeaders.("Accept") = "application/json"
+            debug = true
+            compression = false
+            contentType = "application/json"
+            format = "json"
+            addHeader << {
+                    // header[0] << "Content-Type" { value="application/json" }
+                    header[0] << "Accept" { value="application/json" }
             }
-            osc.GetCAToken << {
-                alias = "auth/realms/datatools4heart/protocol/openid-connect/token"
-                method = "post"
-                format = "x-www-form-urlencoded" //"application/x-www-form-urlencoded"
-                // addHeader.header[0] << { "Accept" { value = "application/json"} } this add headers both to request and response
-                requestHeaders.("Accept") = "application/json"
-            }
+            // osc.GetVaToken << {
+            //     alias = "auth/realms/datatools4heart/protocol/openid-connect/token"
+            //     method = "post"
+            //     format = "x-www-form-urlencoded" //"application/x-www-form-urlencoded"
+            //     // requestHeaders.("Accept") = "application/json"
+            //     outHeaders.("Accept") = "application/json"
+            // }
+            // osc.GetCAToken << {
+            //     alias = "auth/realms/datatools4heart/protocol/openid-connect/token"
+            //     method = "post"
+            //     format = "x-www-form-urlencoded" //"application/x-www-form-urlencoded"
+            //     // addHeader.header[0] << { "Accept" { value = "application/json"} } this add headers both to request and response
+            //     outHeaders.("Accept") = "application/json"
+            // }
             osc.GetUserProfileData << {
                 alias = "auth/realms/datatools4heart/account/"
                 method = "get"
-                format = "json"
-                requestHeaders.("Accept") = "application/json"
-                requestHeaders.("Authorization") = "Bearer %!{token}"
+                // format = "json"
+                // addHeader << {
+                //     header[0] << "Accept" { value="application/json" }
+                //     header[1] << "Authorization" { value="Bearer " + token }
+                //     header[2] << "Content-Type" { value="application/json" }
+                // }
+
             }
             osc.PutUserProfileData << {
                 alias = "auth/realms/datatools4heart/account/"
                 method = "post"
-                format = "json"
-                requestHeaders.("Accept") = "application/json"
-                requestHeaders.("Authorization") = "Bearer %!{token}"
+                // format = "json"
             }
         }
         interfaces: KeycloakServerInterface
@@ -122,15 +131,23 @@ service Keycloak {
 
     main {
         isUserRegistered(token)(success) {
+            KeycloakServerPort.protocol.https.addHeader.header[1] << "Authorization" { value="Bearer " + token }
             GetUserProfileData@KeycloakServerPort()(userProfileData)
             success = is_defined(userProfileData.attributes.bcsecret)
         }
         updateUserData(newUserAttr)(success) {
-            token -> newUserAttr.token
+            KeycloakServerPort.protocol.https.addHeader.header[1] << "Authorization" { value="Bearer " + newUserAttr.token }
             PutUserProfileData@KeycloakServerPort({ attributes = newUserAttributes.attributes })(success)
         }
         getUserData(token)(userProfileData) {
-            GetUserProfileData@KeycloakServerPort()(userProfileData)
+            KeycloakServerPort.protocol.https.addHeader.header[1] << "Authorization" { value="Bearer " + token }
+            GetUserProfileData@KeycloakServerPort()(userFullData)
+            userProfileData << {
+                id = userFullData.id
+                username = userFullData.username
+                email = userFullData.email
+                attributes << userFullData.attributes
+            }
         }
     }
 }
