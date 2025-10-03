@@ -17,6 +17,7 @@ type ExecuteTransaction {
     enrollmentId: string
     secret: string
     type: string( enum(["query", "invoke"]) )
+    institution: string( enum(["Athena Research Center", "Barcelona Supercomputing Center", "University of Barcelona"]) )
     transaction: TransactionRequest
 }
 
@@ -36,7 +37,7 @@ interface BlockchainServiceInterface {
 
 constants {
     ARCLocation = "socket://localhost:7070", //TODO this will not work, because its an orderer, need to point to peer
-    BSCCALocation = "socket://localhost:8081",
+    BSCCALocation = "socket://blockchain-api-filestore:8081",
     UBCALocation = "socket://localhost:9051"
 }
 

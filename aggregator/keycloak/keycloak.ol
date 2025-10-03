@@ -67,7 +67,7 @@ interface KeycloakServerInterface {
 
 type NewUserAttributes {
     token: string
-    attributes: string
+    attributes: Attributes
 }
 
 interface KeycloakServiceInterface {
@@ -131,16 +131,11 @@ service Keycloak {
     }
 
     main {
-        isUserRegistered(token)(success) {
-            authToken = "Bearer " + token
-            GetUserProfileData@KeycloakServerPort()(userProfileData)
-            success = is_defined(userProfileData.attributes.bcsecret)
-        }
-        updateUserData(newUserAttr)(success) {
+        [updateUserData(newUserAttr)(success) {
             authToken = "Bearer " + newUserAttr.token
             PutUserProfileData@KeycloakServerPort({ attributes = newUserAttributes.attributes })(success)
-        }
-        getUserData(token)(userProfileData) {
+        }]
+        [getUserData(token)(userProfileData) {
             authToken = "Bearer " + token
             GetUserProfileData@KeycloakServerPort()(userFullData)
             userProfileData << {
@@ -149,6 +144,6 @@ service Keycloak {
                 email = userFullData.email
                 attributes << userFullData.attributes
             }
-        }
+        }]
     }
 }
