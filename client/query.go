@@ -23,5 +23,6 @@ func QueryWithBody(w http.ResponseWriter, reqBody RequestBody, gateway *client.G
 		http.Error(w, "Query error from blockchain: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	w.Write(evaluateResponse)
+	fmt.Fprintf(w, "Query response: %s", evaluateResponse)
+	// w.Write(evaluateResponse)
 }

@@ -23,10 +23,10 @@ type ExecuteTransaction {
 
 interface BlockchainAPIClientInterface {
     RequestResponse:
-        initialize(InitializeRequest)(string),
+        initialize(InitializeRequest)(undefined),
         query(TransactionRequest)(undefined),
         invoke(TransactionRequest)(undefined),
-        close(undefined)(string)
+        close(undefined)(undefined)
 }
 
 interface BlockchainServiceInterface {
@@ -37,7 +37,7 @@ interface BlockchainServiceInterface {
 
 constants {
     ARCLocation = "socket://localhost:7070", //TODO this will not work, because its an orderer, need to point to peer
-    BSCCALocation = "socket://blockchain-api-filestore:8081",
+    BSCCALocation = "socket://blockchain-api-filestore:3000",
     UBCALocation = "socket://localhost:9051"
 }
 
@@ -47,7 +47,7 @@ service BlockchainAPI {
 
     execution: concurrent
 
-    outputPort BlockchainAPI {
+    outputPort BlockchainAPIPort {
         protocol: http {
             format = "json"
             osc.initialize << {
@@ -78,17 +78,21 @@ service BlockchainAPI {
     main {
         executeTransaction(transactionReq)(response) {
             if (transactionReq.institution == "Athena Research Center") {
-                BlockchainAPIClientPort.location = ARCLocation
+                BlockchainAPIPort.location = ARCLocation
             } else if (transactionReq.institution == "Barcelona Supercomputing Center") {
-                BlockchainAPIClientPort.location = BSCCALocation
+                BlockchainAPIPort.location = BSCCALocation
             } else if (transactionReq.institution == "University of Barcelona") {
-                BlockchainAPIClientPort.location = UBCALocation
+                BlockchainAPIPort.location = UBCALocation
+            } else {
+                // Handle unknown institution
+                println@Console("Unknown institution: " + transactionReq.institution)()
+                exit
             }
-            initialize@BlockchainAPI({ enrollmentId = transactionReq.enrollmentId, secret = transactionReq.secret })(initResponse)
+            initialize@BlockchainAPIPort({ enrollmentId = transactionReq.enrollmentId, secret = transactionReq.secret })(initResponse)
             if (transactionReq.type == "query") {
-                query@BlockchainAPI(transactionReq.transaction)(response)
+                query@BlockchainAPIPort(transactionReq.transaction)(response)
             } else if (transactionReq.type == "invoke") {
-                invoke@BlockchainAPI(transactionReq.transaction)(response)
+                invoke@BlockchainAPIPort(transactionReq.transaction)(response)
             }
             valueToPrettyString@StringUtils(response)(responseStr)
             println@Console("Transaction response:")()

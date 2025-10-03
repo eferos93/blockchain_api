@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -89,6 +90,7 @@ func InvokeHandler(w http.ResponseWriter, r *http.Request) {
 
 // Handler for /client/query
 func QueryHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Received Query request")
 	if r.Method == http.MethodGet {
 		// Parse query parameters
 		chaincodeId := r.URL.Query().Get("chaincodeid")
