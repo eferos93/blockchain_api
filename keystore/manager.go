@@ -68,7 +68,7 @@ func StorePrivateKey(enrollmentID, userSecret string, cert, tlsCert []byte, priv
 	if err != nil {
 		return fmt.Errorf("failed to convert private key to PEM: %w", err)
 	}
-	return GlobalKeystore.StoreKey(enrollmentID, userSecret, cert, privateKeyPEM, tlsCert)
+	return GlobalKeystore.StoreKey(enrollmentID, userSecret, privateKeyPEM, cert, tlsCert)
 }
 
 // convertPrivateKeyToPEM converts an ECDSA private key to PEM format

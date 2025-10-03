@@ -29,7 +29,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 FROM alpine:3.21
 
 # Install ca-certificates for HTTPS
-RUN apk --no-cache add ca-certificates tzdata && \
+RUN apk --no-cache add ca-certificates tzdata openssl && \
     rm -rf /var/cache/apk/*
 
 WORKDIR /app
