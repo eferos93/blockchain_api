@@ -52,19 +52,19 @@ service BlockchainAPI {
             format = "json"
             osc.initialize << {
                 method = "post"
-                alias = "/client/"
+                alias = "client/"
             }
             osc.query << {
                 method = "get"
-                alias = "/client/query"
+                alias = "client/query"
             }
             osc.invoke << {
                 method = "post"
-                alias = "/client/invoke"
+                alias = "client/invoke"
             }
             osc.close << {
                 method = "get"
-                alias = "/client/close"
+                alias = "client/close"
             }
         }
         interfaces: BlockchainAPIClientInterface

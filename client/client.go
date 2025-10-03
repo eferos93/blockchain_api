@@ -73,6 +73,7 @@ func InitializeWithSession(clientRequestBody ClientRequestBody, session *session
 
 // Handler for /client/invoke
 func InvokeHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Received Invoke request")
 	session, _ := getSessionStore().Get(r, "fabric-session")
 	gateway, ok := GetGateway(session.ID)
 
