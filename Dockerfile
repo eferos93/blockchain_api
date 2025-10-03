@@ -40,7 +40,6 @@ COPY --from=build /app/README.md ./
 COPY --from=build /app/generate_session_keys.sh ./
 COPY --from=build /app/client ./client
 COPY --from=build /app/standard_credentials.json ./
-COPY --from=build /app/identities ./identities
 
 # Create identities directory (optional copy follows)
 RUN mkdir -p ./identities

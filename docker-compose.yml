@@ -186,11 +186,11 @@ services:
       TLS_CA_URL: "${TEST_TLS_CA_URL}"
       FABRIC_CA_SKIP_TLS: "true"
       TLS_CA_SKIP_TLS: "true"
-    # volumes:
-    #   - type: bind
-    #     source: ./identities
-    #     target: /app/identities
-    #     read_only: true
+    volumes:
+      - type: bind
+        source: ./identities
+        target: /app/identities
+        read_only: false
     profiles:
       - test-filestore
     
