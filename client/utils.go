@@ -41,7 +41,7 @@ func IdentityHashFromPEM(pem string) string {
 func Initialize(enrollmentId, userSecret string) (*client.Gateway, error) {
 	// userSecret, err := base64.StdEncoding.DecodeString(userSecretB64)
 	log.Printf("Initializing connection for %s...\n", orgSetup.OrgName)
-	clientConnection, err := newGrpcConnection()
+	clientConnection, err := newGrpcConnection(enrollmentId, userSecret)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC connection: %w", err)
 	}
@@ -86,11 +86,23 @@ func RemoveGateway(sessionID string) {
 }
 
 // newGrpcConnection creates a gRPC connection to the Gateway server.
-func newGrpcConnection() (*grpc.ClientConn, error) {
-	// TODO: implement TLS certificate loading from keystore if UseKeystore is true
-	certificate, err := loadCertificate(orgSetup.TLSCertPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load TLS certificate: %w", err)
+func newGrpcConnection(enrollmentId, userSecret string) (*grpc.ClientConn, error) {
+	var certificate *x509.Certificate
+	var err error
+	if orgSetup.TLSCertPath == "" {
+		entry, err := keystore.GlobalKeystore.RetrieveKey(enrollmentId, userSecret)
+		if err != nil {
+			return nil, fmt.Errorf("failed to retrieve entry from keystore: %w", err)
+		}
+		certificate, err = identity.CertificateFromPEM(entry.TLSCertificate)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse TLS certificate from keystore: %w", err)
+		}
+	} else {
+		certificate, err = loadCertificate(orgSetup.TLSCertPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load TLS certificate: %w", err)
+		}
 	}
 
 	certPool := x509.NewCertPool()
