@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"testing"
 
 	"github.com/gorilla/sessions"
 )
@@ -21,16 +22,25 @@ var storeOnce sync.Once
 var orgSetup OrgSetup
 
 func init() {
-	base := filepath.Join("..", "identities", "bsc", "blockclient", "msp")
-	orgSetup = OrgSetup{
-		OrgName:      getEnvWithDefault("ORG_NAME", "bsc"),
-		MSPID:        getEnvWithDefault("MSP_ID", "BscMSP"),
-		CryptoPath:   getEnvWithDefault("CRYPTO_PATH", base),
-		CertPath:     getEnvWithDefault("CERT_PATH", filepath.Join(base, "signcerts", "cert.pem")),
-		KeyPath:      getEnvWithDefault("KEY_PATH", filepath.Join(base, "keystore")),
-		TLSCertPath:  getEnvWithDefault("TLS_CERT_PATH", filepath.Join(base, "tlscacerts", "ca.crt")),
-		PeerEndpoint: getEnvWithDefault("PEER_ENDPOINT", "dns:///localhost:9051"),
-		GatewayPeer:  getEnvWithDefault("GATEWAY_PEER", "peer0.bsc.dt4h.com"),
+	if testing.Testing() {
+		base := filepath.Join("..", "identities", "bsc", "blockclient", "msp")
+		orgSetup = OrgSetup{
+			OrgName:      getEnvWithDefault("ORG_NAME", "bsc"),
+			MSPID:        getEnvWithDefault("MSP_ID", "BscMSP"),
+			CryptoPath:   getEnvWithDefault("CRYPTO_PATH", base),
+			CertPath:     getEnvWithDefault("CERT_PATH", filepath.Join(base, "signcerts", "cert.pem")),
+			KeyPath:      getEnvWithDefault("KEY_PATH", filepath.Join(base, "keystore")),
+			TLSCertPath:  getEnvWithDefault("TLS_CERT_PATH", filepath.Join(base, "tlscacerts", "ca.crt")),
+			PeerEndpoint: getEnvWithDefault("PEER_ENDPOINT", "dns:///localhost:9051"),
+			GatewayPeer:  getEnvWithDefault("GATEWAY_PEER", "peer0.bsc.dt4h.com"),
+		}
+	} else {
+		orgSetup = OrgSetup{
+			OrgName:      getEnvWithDefault("ORG_NAME", "bsc"),
+			MSPID:        getEnvWithDefault("MSP_ID", "BscMSP"),
+			PeerEndpoint: getEnvWithDefault("PEER_ENDPOINT", "dns:///localhost:9051"),
+			GatewayPeer:  getEnvWithDefault("GATEWAY_PEER", "peer0.bsc.dt4h.com"),
+		}
 	}
 }
 
