@@ -65,6 +65,7 @@ service Aggregator {
                     enrollmentId = userInfo.email
                     secret = userInfo.attributes.bcsecret
                     type = transactionReq.type
+                    institution = userInfo.attributes.institution 
                     transaction << transactionReq.transaction
                 }
                 executeTransaction@BlockchainAPI(executeTranReq)(transactionResponse)
@@ -73,6 +74,7 @@ service Aggregator {
                     enrollmentId = userInfo.email
                     secret = userInfo.attributes.bcsecret
                     type = transactionReq.transaction.type
+                    institution = userInfo.attributes.institution 
                     transaction << transactionReq.transaction.transaction
                 }
                 executeTransaction@BlockchainAPI(executeTranReq)(transactionResponse)
