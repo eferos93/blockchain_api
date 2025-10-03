@@ -96,8 +96,20 @@ func main() {
 }
 
 // RegisterBSCUser registers a new user in the BSC organization using the CA API
-// and then enrolls them to obtain their certificates
+// and then enrolls them to obtain their certificates.
+// If the user is already registered with the CA, it loads their credentials from the identities folder.
 func RegisterBSCUser(username, secret string) error {
+	// Setup paths
+	identitiesBasePath := os.Getenv("IDENTITIES_PATH")
+	if identitiesBasePath == "" {
+		identitiesBasePath = "./identities"
+	}
+
+	userIdentityPath := filepath.Join(identitiesBasePath, "bsc", username)
+	privateKeyPath := filepath.Join(userIdentityPath, "msp", "keystore", "key.pem")
+	certificatePath := filepath.Join(userIdentityPath, "msp", "signcerts", "cert.pem")
+	tlsCertPath := filepath.Join(userIdentityPath, "msp", "tlscacerts", "ca.crt")
+
 	// Get admin credentials from environment or use defaults
 	adminUsername := os.Getenv("BSC_REG_USERNAME")
 	if adminUsername == "" {
@@ -153,8 +165,19 @@ func RegisterBSCUser(username, secret string) error {
 		return fmt.Errorf("failed to read registration response: %w", err)
 	}
 
+	// Check if registration failed because user already exists
 	if regResp.StatusCode != http.StatusOK && regResp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("registration failed with status %d: %s", regResp.StatusCode, string(regBody))
+		// Check if the error indicates user is already registered
+		errorMsg := string(regBody)
+		if bytes.Contains(regBody, []byte("already registered")) ||
+			bytes.Contains(regBody, []byte("already exists")) ||
+			(bytes.Contains(regBody, []byte("Identity")) && bytes.Contains(regBody, []byte("already registered"))) {
+			log.Printf("User %s is already registered with CA, loading credentials from identities folder...", username)
+
+			// Load credentials from files
+			return loadExistingIdentity(username, secret, privateKeyPath, certificatePath)
+		}
+		return fmt.Errorf("registration failed with status %d: %s", regResp.StatusCode, errorMsg)
 	}
 
 	var regResponse map[string]interface{}
@@ -163,6 +186,14 @@ func RegisterBSCUser(username, secret string) error {
 	}
 
 	if success, ok := regResponse["success"].(bool); !ok || !success {
+		// Check if error message indicates already registered
+		if errMsg, exists := regResponse["error"].(string); exists {
+			if bytes.Contains([]byte(errMsg), []byte("already registered")) ||
+				bytes.Contains([]byte(errMsg), []byte("already exists")) {
+				log.Printf("User %s is already registered with CA, loading credentials from identities folder...", username)
+				return loadExistingIdentity(username, secret, privateKeyPath, certificatePath)
+			}
+		}
 		return fmt.Errorf("registration failed: %v", regResponse)
 	}
 
@@ -235,12 +266,7 @@ func RegisterBSCUser(username, secret string) error {
 	}
 
 	// Create directory structure: identities/bsc/<username>/msp/{keystore,signcerts,tlscacerts}
-	identitiesBasePath := os.Getenv("IDENTITIES_PATH")
-	if identitiesBasePath == "" {
-		identitiesBasePath = "./identities"
-	}
-
-	userIdentityPath := filepath.Join(identitiesBasePath, "bsc", username)
+	// Reuse identitiesBasePath, userIdentityPath, privateKeyPath, certificatePath, tlsCertPath from above
 	mspPath := filepath.Join(userIdentityPath, "msp")
 	keystorePath := filepath.Join(mspPath, "keystore")
 	signcertsPath := filepath.Join(mspPath, "signcerts")
@@ -254,19 +280,16 @@ func RegisterBSCUser(username, secret string) error {
 	}
 
 	// Write private key to keystore/key.pem
-	privateKeyPath := filepath.Join(keystorePath, "key.pem")
 	if err := os.WriteFile(privateKeyPath, keystoreEntry.PrivateKey, 0600); err != nil {
 		return fmt.Errorf("failed to write private key: %w", err)
 	}
 
 	// Write certificate to signcerts/cert.pem
-	certificatePath := filepath.Join(signcertsPath, "cert.pem")
 	if err := os.WriteFile(certificatePath, keystoreEntry.Certificate, 0644); err != nil {
 		return fmt.Errorf("failed to write certificate: %w", err)
 	}
 
 	// Write TLS CA certificate to tlscacerts/ca.crt
-	tlsCertPath := filepath.Join(tlscacertsPath, "ca.crt")
 	if len(keystoreEntry.TLSCertificate) > 0 {
 		if err := os.WriteFile(tlsCertPath, keystoreEntry.TLSCertificate, 0644); err != nil {
 			return fmt.Errorf("failed to write TLS CA certificate: %w", err)
@@ -335,6 +358,38 @@ func LoadOrganizationIdentities(organization string, keystore *keystore.Keystore
 		}
 		fmt.Printf("✓ Verified identity: %s (EnrollmentID: %s)\n", identity.Username, entry.EnrollmentID)
 	}
+	return nil
+}
+
+// loadExistingIdentity loads an already registered user's credentials from the identities folder
+func loadExistingIdentity(username, secret, privateKeyPath, certificatePath string) error {
+	// Check if identity files exist
+	if _, err := os.Stat(privateKeyPath); os.IsNotExist(err) {
+		return fmt.Errorf("user %s is already registered but identity files not found at %s", username, privateKeyPath)
+	}
+	if _, err := os.Stat(certificatePath); os.IsNotExist(err) {
+		return fmt.Errorf("user %s is already registered but certificate not found at %s", username, certificatePath)
+	}
+
+	// Read existing private key
+	privateKeyPEM, err := os.ReadFile(privateKeyPath)
+	if err != nil {
+		return fmt.Errorf("failed to read existing private key: %w", err)
+	}
+
+	// Read existing certificate
+	certificatePEM, err := os.ReadFile(certificatePath)
+	if err != nil {
+		return fmt.Errorf("failed to read existing certificate: %w", err)
+	}
+
+	// Store in keystore with empty TLS certificate
+	if err := keystore.GlobalKeystore.StoreKey(username, secret, privateKeyPEM, certificatePEM, []byte{}); err != nil {
+		return fmt.Errorf("failed to store existing identity in keystore: %w", err)
+	}
+
+	log.Printf("✓ Successfully loaded existing identity for user %s from identities folder", username)
+	log.Printf("✓ User %s is ready to use in BSC organization", username)
 	return nil
 }
 
