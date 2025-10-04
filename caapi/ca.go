@@ -18,6 +18,8 @@ var FabricCAConfig CAConfig
 var TLSCAConfig CAConfig
 var CAClient *http.Client
 var TLSCAClient *http.Client
+var tlsAdmin string
+var tlsAdminPwd string
 
 const (
 	CAInfoEndpoint     = "%s/api/v1/cainfo"
@@ -40,6 +42,9 @@ func init() {
 		TLSCerts: getEnvWithDefault("TLS_CA_TLS_CERTS", ""),
 		SkipTLS:  getEnvWithDefault("TLS_CA_SKIP_TLS", "true") == "true",
 	}
+
+	tlsAdmin = getEnvWithDefault("TLSCA_ADMIN", "")
+	tlsAdminPwd = getEnvWithDefault("TLSCA_ADMIN_PWD", "")
 	CAClient = createHTTPClient(FabricCAConfig)
 	TLSCAClient = createHTTPClient(TLSCAConfig)
 }
@@ -217,11 +222,11 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TLSCAregHttpReq, err := prepareGenericRegisterCARequest(regReqBody, TLSCAConfig, req.AdminIdentity.EnrollmentID, req.AdminIdentity.Secret)
-	// if err != nil {
-	// 	http.Error(w, "Failed to create TLS registration requests: "+err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
+	TLSCAregHttpReq, err := prepareGenericRegisterCARequest(regReqBody, TLSCAConfig, tlsAdmin, tlsAdminPwd)
+	if err != nil {
+		http.Error(w, "Failed to create TLS registration requests: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	// var adminCert, adminPrivateKey []byte
 	// if testing.Testing() {
@@ -251,18 +256,18 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TLSCARegResponse, err := TLSCAClient.Do(TLSCAregHttpReq)
-	// if err != nil {
-	// 	log.Printf("Failed to register TLS identity: %v", err)
-	// 	http.Error(w, "Failed to connect to TLS CA server", http.StatusInternalServerError)
-	// 	return
-	// }
+	TLSCARegResponse, err := TLSCAClient.Do(TLSCAregHttpReq)
+	if err != nil {
+		log.Printf("Failed to register TLS identity: %v", err)
+		http.Error(w, "Failed to connect to TLS CA server", http.StatusInternalServerError)
+		return
+	}
 
 	defer CAregResp.Body.Close()
-	// defer TLSCARegResponse.Body.Close()
+	defer TLSCARegResponse.Body.Close()
 
 	CARespBody, err := io.ReadAll(CAregResp.Body)
-	// TLSCARespBody, err := io.ReadAll(TLSCARegResponse.Body)
+	TLSCARespBody, err := io.ReadAll(TLSCARegResponse.Body)
 	if err != nil {
 		http.Error(w, "Failed to read CA response", http.StatusInternalServerError)
 		return
@@ -273,22 +278,22 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// if TLSCARegResponse.StatusCode != http.StatusOK && TLSCARegResponse.StatusCode != http.StatusCreated {
-	// 	http.Error(w, fmt.Sprintf("TLS Registration failed: %s", string(TLSCARespBody)), TLSCARegResponse.StatusCode)
-	// 	return
-	// }
+	if TLSCARegResponse.StatusCode != http.StatusOK && TLSCARegResponse.StatusCode != http.StatusCreated {
+		http.Error(w, fmt.Sprintf("TLS Registration failed: %s", string(TLSCARespBody)), TLSCARegResponse.StatusCode)
+		return
+	}
 
 	var CARegisterResp map[string]any
-	// var TLSCARegisterResp map[string]any
+	var TLSCARegisterResp map[string]any
 	if err := json.Unmarshal(CARespBody, &CARegisterResp); err != nil {
 		http.Error(w, "Failed to parse registration response", http.StatusInternalServerError)
 		return
 	}
 
-	// if err := json.Unmarshal(TLSCARespBody, &TLSCARegisterResp); err != nil {
-	// 	http.Error(w, "Failed to parse TLS registration response", http.StatusInternalServerError)
-	// 	return
-	// }
+	if err := json.Unmarshal(TLSCARespBody, &TLSCARegisterResp); err != nil {
+		http.Error(w, "Failed to parse TLS registration response", http.StatusInternalServerError)
+		return
+	}
 
 	// Return success response
 	response := map[string]any{
@@ -296,7 +301,7 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		"message": "Identity registered successfully",
 		"result": map[string]any{
 			"CA":  CARegisterResp,
-			"TLS": "", //TLSCARegisterResp,
+			"TLS": TLSCARegisterResp,
 		},
 	}
 
