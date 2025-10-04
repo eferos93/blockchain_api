@@ -30,7 +30,7 @@ func init() {
 			CryptoPath:   getEnvWithDefault("CRYPTO_PATH", base),
 			CertPath:     getEnvWithDefault("CERT_PATH", filepath.Join(base, "signcerts", "cert.pem")),
 			KeyPath:      getEnvWithDefault("KEY_PATH", filepath.Join(base, "keystore")),
-			TLSCertPath:  getEnvWithDefault("TLS_CERT_PATH", filepath.Join(base, "tlscacerts", "ca.crt")),
+			TLSCertPath:  getEnvWithDefault("TLS_CERT_PATH", filepath.Join(base, "tlscacerts", "cert.pem")),
 			PeerEndpoint: getEnvWithDefault("PEER_ENDPOINT", "dns:///localhost:9051"),
 			GatewayPeer:  getEnvWithDefault("GATEWAY_PEER", "peer0.bsc.dt4h.com"),
 		}

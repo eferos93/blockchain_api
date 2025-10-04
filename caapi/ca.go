@@ -119,13 +119,12 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to prepare enrollment request: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
-
 	// TODO: Implement TLS CA enrollment request preparation
-	// TLSCAreqBody, err := prepareEnrollRequest(true, csrPEM)
-	// if err != nil {
-	// 	http.Error(w, "Failed to prepare TLS enrollment request: "+err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
+	TLSCAreqBody, err := prepareEnrollRequest(true, csrPEM)
+	if err != nil {
+		http.Error(w, "Failed to prepare TLS enrollment request: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	// Enroll to CA
 	CAEnrollBody, CAcertificatePEM, err := enrollToCA(FabricCAConfig, CAClient, CAreqBody, req)
@@ -136,12 +135,12 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Enroll to TLS CA COMMENTED for now
-	// TLSCAEnrollBody, TLSCAcertificatePEM, err := enrollToCA(TLSCAConfig, TLSCAClient, TLSCAreqBody, req)
-	// if err != nil {
-	// 	log.Printf("Failed to enroll to TLS CA: %v", err)
-	// 	http.Error(w, "Failed to enroll to TLS CA: "+err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
+	TLSCAEnrollBody, TLSCAcertificatePEM, err := enrollToCA(TLSCAConfig, TLSCAClient, TLSCAreqBody, req)
+	if err != nil {
+		log.Printf("Failed to enroll to TLS CA: %v", err)
+		http.Error(w, "Failed to enroll to TLS CA: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	// Parse enrollment responses
 	var CAenrollResp map[string]any
@@ -150,14 +149,15 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// var TLSCAEnrollResp map[string]any
-	// if err := json.Unmarshal(TLSCAEnrollBody, &TLSCAEnrollResp); err != nil {
-	// 	http.Error(w, "Failed to parse TLS CA enrollment response: "+err.Error(), http.StatusInternalServerError)
-	// 	return
-	// }
+	var TLSCAEnrollResp map[string]any
+	if err := json.Unmarshal(TLSCAEnrollBody, &TLSCAEnrollResp); err != nil {
+		http.Error(w, "Failed to parse TLS CA enrollment response: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	// TODO: we are storing an empty TLS certificate for now
-	if err := keystore.StorePrivateKey(req.EnrollmentID, req.Secret, CAcertificatePEM, []byte{}, privateKey); err != nil {
+	// var TLSCAcertificatePEM := []byte{}
+	if err := keystore.StorePrivateKey(req.EnrollmentID, req.Secret, CAcertificatePEM, TLSCAcertificatePEM, privateKey); err != nil {
 		log.Printf("Warning: Failed to store enrollment result in keystore: %v", err)
 		// Don't fail the request, just log the warning
 	} else {
@@ -167,7 +167,7 @@ func EnrollHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var response = map[string]any{
 		"CAEnrollResp":    CAenrollResp,
-		"TLSCAEnrollResp": "", //TLSCAEnrollResp,
+		"TLSCAEnrollResp": TLSCAEnrollResp,
 		"success":         true,
 	}
 	json.NewEncoder(w).Encode(response)

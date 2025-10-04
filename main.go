@@ -106,9 +106,9 @@ func RegisterBSCUser(username, secret string) error {
 	}
 
 	userIdentityPath := filepath.Join(identitiesBasePath, "bsc", username)
-	privateKeyPath := filepath.Join(userIdentityPath, "msp", "keystore", "key.pem")
-	certificatePath := filepath.Join(userIdentityPath, "msp", "signcerts", "cert.pem")
-	tlsCertPath := filepath.Join(userIdentityPath, "msp", "tlscacerts", "ca.crt")
+	keystoreDir := filepath.Join(userIdentityPath, "msp", "keystore")
+	signcertsDir := filepath.Join(userIdentityPath, "msp", "signcerts")
+	tlscacertsDir := filepath.Join(userIdentityPath, "msp", "tlscacerts")
 
 	// Get admin credentials from environment or use defaults
 	adminUsername := os.Getenv("BSC_REG_USERNAME")
@@ -175,7 +175,7 @@ func RegisterBSCUser(username, secret string) error {
 			log.Printf("User %s is already registered with CA, loading credentials from identities folder...", username)
 
 			// Load credentials from files
-			return loadExistingIdentity(username, secret, privateKeyPath, certificatePath)
+			return loadExistingIdentity(username, secret, keystoreDir, signcertsDir, tlscacertsDir)
 		}
 		return fmt.Errorf("registration failed with status %d: %s", regResp.StatusCode, errorMsg)
 	}
@@ -191,7 +191,7 @@ func RegisterBSCUser(username, secret string) error {
 			if bytes.Contains([]byte(errMsg), []byte("already registered")) ||
 				bytes.Contains([]byte(errMsg), []byte("already exists")) {
 				log.Printf("User %s is already registered with CA, loading credentials from identities folder...", username)
-				return loadExistingIdentity(username, secret, privateKeyPath, certificatePath)
+				return loadExistingIdentity(username, secret, keystoreDir, signcertsDir, tlscacertsDir)
 			}
 		}
 		return fmt.Errorf("registration failed: %v", regResponse)
@@ -266,31 +266,28 @@ func RegisterBSCUser(username, secret string) error {
 	}
 
 	// Create directory structure: identities/bsc/<username>/msp/{keystore,signcerts,tlscacerts}
-	// Reuse identitiesBasePath, userIdentityPath, privateKeyPath, certificatePath, tlsCertPath from above
-	mspPath := filepath.Join(userIdentityPath, "msp")
-	keystorePath := filepath.Join(mspPath, "keystore")
-	signcertsPath := filepath.Join(mspPath, "signcerts")
-	tlscacertsPath := filepath.Join(mspPath, "tlscacerts")
-
 	// Create all directories
-	for _, dir := range []string{keystorePath, signcertsPath, tlscacertsPath} {
+	for _, dir := range []string{keystoreDir, signcertsDir, tlscacertsDir} {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return fmt.Errorf("failed to create directory %s: %w", dir, err)
 		}
 	}
 
 	// Write private key to keystore/key.pem
+	privateKeyPath := filepath.Join(keystoreDir, "key.pem")
 	if err := os.WriteFile(privateKeyPath, keystoreEntry.PrivateKey, 0600); err != nil {
 		return fmt.Errorf("failed to write private key: %w", err)
 	}
 
 	// Write certificate to signcerts/cert.pem
+	certificatePath := filepath.Join(signcertsDir, "cert.pem")
 	if err := os.WriteFile(certificatePath, keystoreEntry.Certificate, 0644); err != nil {
 		return fmt.Errorf("failed to write certificate: %w", err)
 	}
 
-	// Write TLS CA certificate to tlscacerts/ca.crt
+	// Write TLS CA certificate to tlscacerts/cert.pem
 	if len(keystoreEntry.TLSCertificate) > 0 {
+		tlsCertPath := filepath.Join(tlscacertsDir, "cert.pem")
 		if err := os.WriteFile(tlsCertPath, keystoreEntry.TLSCertificate, 0644); err != nil {
 			return fmt.Errorf("failed to write TLS CA certificate: %w", err)
 		}
@@ -362,13 +359,31 @@ func LoadOrganizationIdentities(organization string, keystore *keystore.Keystore
 }
 
 // loadExistingIdentity loads an already registered user's credentials from the identities folder
-func loadExistingIdentity(username, secret, privateKeyPath, certificatePath string) error {
-	// Check if identity files exist
-	if _, err := os.Stat(privateKeyPath); os.IsNotExist(err) {
-		return fmt.Errorf("user %s is already registered but identity files not found at %s", username, privateKeyPath)
+func loadExistingIdentity(username, secret, keystoreDir, signcertsDir, tlscacertsDir string) error {
+	// Find private key using *.pem pattern
+	privateKeyFiles, err := filepath.Glob(filepath.Join(keystoreDir, "*.pem"))
+	if err != nil {
+		return fmt.Errorf("failed to search for private key: %w", err)
 	}
-	if _, err := os.Stat(certificatePath); os.IsNotExist(err) {
-		return fmt.Errorf("user %s is already registered but certificate not found at %s", username, certificatePath)
+	if len(privateKeyFiles) == 0 {
+		return fmt.Errorf("user %s is already registered but no private key found in %s", username, keystoreDir)
+	}
+	privateKeyPath := privateKeyFiles[0] // Use first .pem file found
+
+	// Find certificate using *.pem pattern
+	certificateFiles, err := filepath.Glob(filepath.Join(signcertsDir, "*.pem"))
+	if err != nil {
+		return fmt.Errorf("failed to search for certificate: %w", err)
+	}
+	if len(certificateFiles) == 0 {
+		return fmt.Errorf("user %s is already registered but no certificate found in %s", username, signcertsDir)
+	}
+	certificatePath := certificateFiles[0]
+
+	// Find TLS certificate using *.pem pattern (optional)
+	tlsCertFiles, err := filepath.Glob(filepath.Join(tlscacertsDir, "*.pem"))
+	if err != nil {
+		return fmt.Errorf("failed to search for TLS certificate: %w", err)
 	}
 
 	// Read existing private key
@@ -383,8 +398,20 @@ func loadExistingIdentity(username, secret, privateKeyPath, certificatePath stri
 		return fmt.Errorf("failed to read existing certificate: %w", err)
 	}
 
-	// Store in keystore with empty TLS certificate
-	if err := keystore.GlobalKeystore.StoreKey(username, secret, privateKeyPEM, certificatePEM, []byte{}); err != nil {
+	// Read existing TLS certificate if found
+	var tlsCertificatePEM []byte
+	if len(tlsCertFiles) > 0 {
+		tlsCertificatePEM, err = os.ReadFile(tlsCertFiles[0])
+		if err != nil {
+			log.Printf("Warning: failed to read TLS certificate: %v", err)
+			tlsCertificatePEM = []byte{} // Use empty if failed
+		}
+	} else {
+		tlsCertificatePEM = []byte{} // Use empty if not found
+	}
+
+	// Store in keystore
+	if err := keystore.GlobalKeystore.StoreKey(username, secret, privateKeyPEM, certificatePEM, tlsCertificatePEM); err != nil {
 		return fmt.Errorf("failed to store existing identity in keystore: %w", err)
 	}
 
@@ -394,12 +421,37 @@ func loadExistingIdentity(username, secret, privateKeyPath, certificatePath stri
 }
 
 func loadIdentity(ks *keystore.KeystoreManager, identity IdentityInfo) error {
-	// Build paths to identity files
+	// Build paths to identity directories
 	basePath := filepath.Join("/app", "identities", identity.Organization, identity.Name)
+	keystoreDir := filepath.Join(basePath, "msp", "keystore")
+	signcertsDir := filepath.Join(basePath, "msp", "signcerts")
+	tlscacertsDir := filepath.Join(basePath, "msp", "tlscacerts")
 
-	privateKeyPath := filepath.Join(basePath, "msp", "keystore", "key.pem")
-	certificatePath := filepath.Join(basePath, "msp", "signcerts", "cert.pem")
-	tlsCertificatePath := filepath.Join(basePath, "msp", "tlscacerts", "ca.crt")
+	// Find private key using *.pem pattern
+	privateKeyFiles, err := filepath.Glob(filepath.Join(keystoreDir, "*.pem"))
+	if err != nil {
+		return fmt.Errorf("failed to search for private key: %w", err)
+	}
+	if len(privateKeyFiles) == 0 {
+		return fmt.Errorf("no private key found in %s", keystoreDir)
+	}
+	privateKeyPath := privateKeyFiles[0] // Use first .pem file found
+
+	// Find certificate using *.pem pattern
+	certificateFiles, err := filepath.Glob(filepath.Join(signcertsDir, "*.pem"))
+	if err != nil {
+		return fmt.Errorf("failed to search for certificate: %w", err)
+	}
+	if len(certificateFiles) == 0 {
+		return fmt.Errorf("no certificate found in %s", signcertsDir)
+	}
+	certificatePath := certificateFiles[0]
+
+	// Find TLS certificate using *.pem pattern (optional)
+	tlsCertFiles, err := filepath.Glob(filepath.Join(tlscacertsDir, "*.pem"))
+	if err != nil {
+		return fmt.Errorf("failed to search for TLS certificate: %w", err)
+	}
 
 	// Read private key
 	privateKeyPEM, err := readFile(privateKeyPath)
@@ -413,10 +465,16 @@ func loadIdentity(ks *keystore.KeystoreManager, identity IdentityInfo) error {
 		return fmt.Errorf("failed to read certificate: %w", err)
 	}
 
-	// Read TLS certificate
-	tlsCertificatePEM, err := readFile(tlsCertificatePath)
-	if err != nil {
-		return fmt.Errorf("failed to read TLS certificate: %w", err)
+	// Read TLS certificate if found
+	var tlsCertificatePEM []byte
+	if len(tlsCertFiles) > 0 {
+		tlsCertificatePEM, err = readFile(tlsCertFiles[0])
+		if err != nil {
+			log.Printf("Warning: failed to read TLS certificate for %s: %v", identity.Username, err)
+			tlsCertificatePEM = []byte{} // Use empty if failed
+		}
+	} else {
+		tlsCertificatePEM = []byte{} // Use empty if not found
 	}
 
 	// Store in keystore

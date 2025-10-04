@@ -163,7 +163,7 @@ process_identity_folder() {
     if [[ -d "$msp_path" ]]; then
         local private_key_path="$msp_path/keystore/key.pem"
         local certificate_path="$msp_path/signcerts/cert.pem"
-        local tls_cert_path="$msp_path/tlscacerts/ca.crt"
+        local tls_cert_path="$msp_path/tlscacerts/cert.pem"
         
         # Use a default password based on identity name
         local password="${identity_name}password"

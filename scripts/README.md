@@ -61,7 +61,7 @@ identities/
 │       ├── signcerts/
 │       │   └── cert.pem         # Certificate
 │       └── tlscacerts/
-│           └── ca.crt           # TLS CA certificate
+│           └── cert.pem           # TLS CA certificate
 ├── bscRegistrar/
 │   └── msp/
 │       └── [same structure]

@@ -127,13 +127,9 @@ func GetKeyForFabricClient(enrollmentID, mspID, userSecret string) (certPEM []by
 	}
 
 	// Validate certificate
-	if err := ValidateCertificate([]byte(entry.Certificate)); err != nil {
+	if err := ValidateCertificate(entry.Certificate); err != nil {
 		return nil, nil, fmt.Errorf("certificate validation failed: %w", err)
 	}
 
-	// Return the certificate and private key as byte arrays (PEM format)
-	certPEM = []byte(entry.Certificate)
-	keyPEM = []byte(entry.PrivateKey)
-
-	return certPEM, keyPEM, nil
+	return entry.Certificate, entry.PrivateKey, nil
 }
