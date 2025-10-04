@@ -425,7 +425,9 @@ func loadIdentity(ks *keystore.KeystoreManager, identity IdentityInfo) error {
 	basePath := filepath.Join("/app", "identities", identity.Organization, identity.Name)
 	keystoreDir := filepath.Join(basePath, "msp", "keystore")
 	signcertsDir := filepath.Join(basePath, "msp", "signcerts")
-	tlscacertsDir := filepath.Join(basePath, "msp", "tlscacerts")
+
+	// TLS CA certificate path: identities/{orgname}/{orgname}TLS-root-cert/
+	tlsRootCertDir := filepath.Join("/app", "identities", identity.Organization, identity.Organization+"TLS-root-cert")
 
 	// Find private key using *.pem pattern
 	privateKeyFiles, err := filepath.Glob(filepath.Join(keystoreDir, "*.pem"))
@@ -447,10 +449,10 @@ func loadIdentity(ks *keystore.KeystoreManager, identity IdentityInfo) error {
 	}
 	certificatePath := certificateFiles[0]
 
-	// Find TLS certificate using *.pem pattern (optional)
-	tlsCertFiles, err := filepath.Glob(filepath.Join(tlscacertsDir, "*.pem"))
+	// Find TLS CA certificate using *.pem pattern from root cert directory
+	tlsCertFiles, err := filepath.Glob(filepath.Join(tlsRootCertDir, "*.pem"))
 	if err != nil {
-		return fmt.Errorf("failed to search for TLS certificate: %w", err)
+		return fmt.Errorf("failed to search for TLS CA certificate: %w", err)
 	}
 
 	// Read private key
@@ -465,15 +467,16 @@ func loadIdentity(ks *keystore.KeystoreManager, identity IdentityInfo) error {
 		return fmt.Errorf("failed to read certificate: %w", err)
 	}
 
-	// Read TLS certificate if found
+	// Read TLS CA certificate if found
 	var tlsCertificatePEM []byte
 	if len(tlsCertFiles) > 0 {
 		tlsCertificatePEM, err = readFile(tlsCertFiles[0])
 		if err != nil {
-			log.Printf("Warning: failed to read TLS certificate for %s: %v", identity.Username, err)
+			log.Printf("Warning: failed to read TLS CA certificate for %s: %v", identity.Username, err)
 			tlsCertificatePEM = []byte{} // Use empty if failed
 		}
 	} else {
+		log.Printf("Warning: no TLS CA certificate found in %s for %s", tlsRootCertDir, identity.Username)
 		tlsCertificatePEM = []byte{} // Use empty if not found
 	}
 

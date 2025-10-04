@@ -25,7 +25,7 @@ interface BlockchainAPIClientInterface {
     RequestResponse:
         initialize(InitializeRequest)(undefined),
         query(TransactionRequest)(undefined),
-        invoke(TransactionRequest)(undefined),
+        invoke(TransactionRequest)(string),
         close(undefined)(undefined)
 }
 
@@ -50,6 +50,7 @@ service BlockchainAPI {
     outputPort BlockchainAPIPort {
         protocol: http {
             format = "json"
+            // contentType = "application/json"
             osc.initialize << {
                 method = "post"
                 alias = "client/"
@@ -94,7 +95,7 @@ service BlockchainAPI {
             } else if (transactionReq.type == "invoke") {
                 invoke@BlockchainAPIPort(transactionReq.transaction)(response)
             }
-            valueToPrettyString@StringUtils(response)(responseStr)
+            // valueToPrettyString@StringUtils(response)(responseStr)
             println@Console("Transaction response:")()
             println@Console(responseStr)()
         }

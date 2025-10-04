@@ -45,7 +45,7 @@ func (setup *OrgSetup) Invoke(w http.ResponseWriter, r *http.Request, gateway *c
 
 // InvokeWithBody handles chaincode invoke requests with a pre-parsed RequestBody.
 func InvokeWithBody(w http.ResponseWriter, reqBody RequestBody, gateway *client.Gateway) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "text/plain")
 	fmt.Println("Received Invoke request")
 	network := gateway.GetNetwork(reqBody.ChannelId)
 	contract := network.GetContract(reqBody.ChaincodeId)
@@ -64,5 +64,6 @@ func InvokeWithBody(w http.ResponseWriter, reqBody RequestBody, gateway *client.
 		http.Error(w, "Error submitting transaction: "+err.Error(), http.StatusBadRequest)
 		return
 	}
+
 	fmt.Fprintf(w, "Transaction ID : %s Response: %s", txn_committed.TransactionID(), txn_endorsed.Result())
 }

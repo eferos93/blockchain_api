@@ -31,14 +31,15 @@ func init() {
 			CertPath:     getEnvWithDefault("CERT_PATH", filepath.Join(base, "signcerts", "cert.pem")),
 			KeyPath:      getEnvWithDefault("KEY_PATH", filepath.Join(base, "keystore")),
 			TLSCertPath:  getEnvWithDefault("TLS_CERT_PATH", filepath.Join(base, "tlscacerts", "cert.pem")),
-			PeerEndpoint: getEnvWithDefault("PEER_ENDPOINT", "dns:///localhost:9051"),
+			PeerEndpoint: getEnvWithDefault("PEER_ENDPOINT", "http://peer0.bsc.dt4h.com:9051"),
 			GatewayPeer:  getEnvWithDefault("GATEWAY_PEER", "peer0.bsc.dt4h.com"),
 		}
 	} else {
 		orgSetup = OrgSetup{
 			OrgName:      getEnvWithDefault("ORG_NAME", "bsc"),
 			MSPID:        getEnvWithDefault("MSP_ID", "BscMSP"),
-			PeerEndpoint: getEnvWithDefault("PEER_ENDPOINT", "dns:///localhost:9051"),
+			TLSCertPath:  filepath.Join("/app/identities/bsc/bscTLS-root-cert", "tls-ca-cert.pem"),
+			PeerEndpoint: getEnvWithDefault("PEER_ENDPOINT", "http://peer0.bsc.dt4h.com:9051"),
 			GatewayPeer:  getEnvWithDefault("GATEWAY_PEER", "peer0.bsc.dt4h.com"),
 		}
 	}

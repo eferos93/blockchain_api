@@ -91,16 +91,7 @@ func RemoveGateway(sessionID string) {
 func newGrpcConnection(enrollmentId, userSecret string) (*grpc.ClientConn, error) {
 	var certificate *x509.Certificate
 	var err error
-	if orgSetup.TLSCertPath == "" {
-		entry, err := keystore.GlobalKeystore.RetrieveKey(enrollmentId, userSecret)
-		if err != nil {
-			return nil, fmt.Errorf("failed to retrieve entry from keystore: %w", err)
-		}
-		certificate, err = identity.CertificateFromPEM(entry.TLSCertificate)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse TLS certificate from keystore: %w", err)
-		}
-	} else {
+	if orgSetup.TLSCertPath != "" {
 		certificate, err = loadCertificate(orgSetup.TLSCertPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load TLS certificate: %w", err)
@@ -125,7 +116,7 @@ func newIdentity(enrollmentID string, userSecret []byte) (*identity.X509Identity
 	var certficatePEM []byte
 	var err error
 
-	if orgSetup.CertPath == "" && orgSetup.KeyPath == "" && orgSetup.TLSCertPath == "" {
+	if orgSetup.CertPath == "" && orgSetup.KeyPath == "" {
 		// Load from keystore
 		certficatePEM, _, err = keystore.GetKeyForFabricClient(enrollmentID, orgSetup.MSPID, string(userSecret))
 		if err != nil {
@@ -171,7 +162,7 @@ func newSign(enrollmentID string, userSecret []byte) (identity.Sign, error) {
 	var privateKey crypto.PrivateKey
 	var err error
 
-	if orgSetup.KeyPath == "" && orgSetup.CertPath == "" && orgSetup.TLSCertPath == "" {
+	if orgSetup.KeyPath == "" && orgSetup.CertPath == "" {
 		// Load from keystore
 		_, privateKeyPEM, err = keystore.GetKeyForFabricClient(enrollmentID, orgSetup.MSPID, string(userSecret))
 		if err != nil {
