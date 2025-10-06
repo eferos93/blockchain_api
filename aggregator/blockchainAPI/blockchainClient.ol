@@ -78,26 +78,26 @@ service BlockchainAPI {
 
     main {
         executeTransaction(transactionReq)(response) {
-            if (transactionReq.institution == "Athena Research Center") {
-                BlockchainAPIPort.location = ARCLocation
-            } else if (transactionReq.institution == "Barcelona Supercomputing Center") {
+            // if (transactionReq.institution == "Athena Research Center") {
+            //     BlockchainAPIPort.location = ARCLocation
+            // } else if (transactionReq.institution == "Barcelona Supercomputing Center") {
                 BlockchainAPIPort.location = BSCCALocation
-            } else if (transactionReq.institution == "University of Barcelona") {
-                BlockchainAPIPort.location = UBCALocation
-            } else {
-                // Handle unknown institution
-                println@Console("Unknown institution: " + transactionReq.institution)()
-                exit
-            }
+            // } else if (transactionReq.institution == "University of Barcelona") {
+                // BlockchainAPIPort.location = UBCALocation
+            // } else {
+            //     // Handle unknown institution
+            //     println@Console("Unknown institution: " + transactionReq.institution)()
+            //     exit
+            // }
             initialize@BlockchainAPIPort({ enrollmentId = transactionReq.enrollmentId, secret = transactionReq.secret })(initResponse)
+            println@Console("Initialized blockchain client for user: " + transactionReq.enrollmentId)()
             if (transactionReq.type == "query") {
                 query@BlockchainAPIPort(transactionReq.transaction)(response)
             } else if (transactionReq.type == "invoke") {
                 invoke@BlockchainAPIPort(transactionReq.transaction)(response)
             }
-            // valueToPrettyString@StringUtils(response)(responseStr)
-            println@Console("Transaction response:")()
-            println@Console(responseStr)()
+            valueToPrettyString@StringUtils(response)(responseStr)
+            println@Console("Transaction response: " + responseStr)()
         }
     }
 }
