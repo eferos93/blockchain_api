@@ -23,8 +23,6 @@ type TransactionRequest {
     }
 }
 
-
-
 service Aggregator {
     embed Keycloak as Keycloak
     embed File as File
@@ -37,10 +35,17 @@ service Aggregator {
 
     inputPort ip {
         location: "socket://localhost:8099"
-        protocol: http {
-            debug = false
+        protocol: https {
+            debug = true
             contentType = "json"
             format = "json"
+            compression = false 
+            ssl << {
+                protocol = "TLSv1.2"
+                keyStoreFormat = "PKCS12"
+                keyStore = "./certs/keystore.p12"
+                keyStorePassword = "fabrero"
+            }
         }
         interfaces: AggregatorInterface
     }
