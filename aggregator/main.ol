@@ -10,21 +10,17 @@ interface AggregatorInterface {
         executeTransaction(TransactionRequest)(undefined) //TODO define proper response type
 } 
 
-type Transaction {
-    chaincodeid: string
-    channelid: string 
-    function: string
-    args[1, *]: string
-}
-
-type ExecuteTransaction {
-    type: string( enum(["query", "invoke"]) )
-    transaction: Transaction
-}
-
 type TransactionRequest {
     accessToken: string
-    transaction: ExecuteTransaction
+    transaction {
+        type: string( enum(["query", "invoke"]) )
+        transaction {
+            chaincodeid: string( enum(["dt4hCC"]) )
+            channelid: string( enum(["dt4h"]) )
+            function: string( enum(["LogQuery", "GetUserHistory"]) )
+            args[1, *]: string
+        }
+    }
 }
 
 
@@ -44,10 +40,14 @@ service Aggregator {
         protocol: http {
             debug = false
             contentType = "json"
+            format = "json"
         }
         interfaces: AggregatorInterface
     }
 
+    init {
+        println@Console("Aggregator service started")()
+    }
 
 	main {
        [executeTransaction(transactionReq)(transactionResponse) {

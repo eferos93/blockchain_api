@@ -5,4 +5,4 @@ COPY . .
 
 EXPOSE 8099
 
-CMD ["jolie", "--trace", "main.ol"]
+CMD ["jolie", "main.ol"]
