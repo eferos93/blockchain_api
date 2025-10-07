@@ -17,7 +17,7 @@ type ExecuteTransaction {
     enrollmentId: string
     secret: string
     type: string( enum(["query", "invoke"]) )
-    institution: string( enum(["Athena Research Center", "Barcelona Supercomputing Center", "University of Barcelona"]) )
+    institution: string//( enum(["Athena Research Center", "Barcelona Supercomputing Center", "University of Barcelona"]) )
     transaction: TransactionRequest
 }
 

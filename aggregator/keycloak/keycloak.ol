@@ -40,17 +40,17 @@ type CAToken {
 }
 
 type Attributes {
-    given_name[1,*]: string
-    family_name[1,*]: string
-    institution[1,*]: string
-    bcsecret[1,*]: string
+    given_name[0,*]: string
+    family_name[0,*]: string
+    institution[0,*]: string
+    bcsecret[0,*]: string
 }
 
 type UserProfileData {
     id: string
     username: string
     email: string
-    attributes: Attributes
+    attributes?: Attributes
 }
 
 type UpdateUserProfileRequest {
@@ -73,7 +73,7 @@ type NewUserAttributes {
 interface KeycloakServiceInterface {
     RequestResponse:
         isUserRegistered(string)(bool),
-        updateUserData(NewUserAttributes)(bool),
+        updateUserData(NewUserAttributes)(undefined),
         getUserData(string)(UserProfileData)
 }
 
@@ -133,7 +133,7 @@ service Keycloak {
     main {
         [updateUserData(newUserAttr)(success) {
             authToken = "Bearer " + newUserAttr.token
-            PutUserProfileData@KeycloakServerPort({ attributes = newUserAttributes.attributes })(success)
+            PutUserProfileData@KeycloakServerPort({ attributes << newUserAttr.attributes })(success)
         }]
         [getUserData(token)(userProfileData) {
             authToken = "Bearer " + token

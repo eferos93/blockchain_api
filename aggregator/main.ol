@@ -62,12 +62,16 @@ service Aggregator {
 
 	main {
        [executeTransaction(transactionReq)(transactionResponse) {
-            getUserData@Keycloak(transactionReq.accessToken)(userInfo)            
-            if (!is_defined(userInfo.attributes.bcsecret)) {
+            getUserData@Keycloak(transactionReq.accessToken)(userInfo)
+            userInfo.attributes.institution = "bsc"
+            userInfo.attributes.family_name = "Tsoukala"
+            userInfo.attributes.given_name = "Chara"
+            if (!is_defined(userInfo.attributes.bcsecret) || userInfo.attributes.bcsecret == "") {
                 createUser@CAClient(userInfo)(registerUserResponse)
                 if (registerUserResponse.success) {
                     userInfo.attributes.bcsecret = registerUserResponse.secret
-                    updateUserData@Keycloak({ token = transactionReq.accessToken, attributes = userInfo.attributes })(success)
+                    
+                    updateUserData@Keycloak({ token = transactionReq.accessToken, attributes << userInfo.attributes })(success)
                 } else {
                     // handle registration failure
                     println@Console("User registration failed")()
@@ -75,9 +79,9 @@ service Aggregator {
                 executeTranReq << {
                     enrollmentId = userInfo.email
                     secret = userInfo.attributes.bcsecret
-                    type = transactionReq.type
+                    type = transactionReq.transaction.type
                     institution = userInfo.attributes.institution 
-                    transaction << transactionReq.transaction
+                    transaction << transactionReq.transaction.transaction
                 }
                 executeTransaction@BlockchainAPI(executeTranReq)(transactionResponse)
             } else {

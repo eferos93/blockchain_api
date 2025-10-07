@@ -34,7 +34,7 @@ type RegisterResponse {
     message: string
     result {
         CA: CAResponse
-        TLSCA: undefined //empty string for now
+        TLS: undefined //empty string for now
     }
 }
 
@@ -48,10 +48,10 @@ type UserRegistrationData {
 }
 
 type Attributes {
-    given_name: string
-    family_name: string
-    institution: string
-    bcsecret: string
+    given_name?: string
+    family_name?: string
+    institution?: string
+    bcsecret?: string
 }
 
 type UserProfileData {
@@ -79,7 +79,7 @@ type EnrollmentRequest {
 }
 
 type EnrollResponse {
-    CaEnrollResp {
+    CAEnrollResp {
         result {
             Cert: string
         
@@ -118,12 +118,12 @@ interface CAInterface {
 }
 
 constants {
-    ARCCALocation = "socket://localhost:8004",
-    BSCCALocation = "socket://localhost:9004",
-    UBCALocation = "socket://localhost:10004",
-    ARCOrg = "Arc",
-    BSCOrg = "Bsc",
-    UBOrg = "Ub",
+    // ARCCALocation = "socket://localhost:8004",
+    BSCCALocation = "socket://blockchain-api-filestore:3000",
+    // UBCALocation = "socket://localhost:10004",
+    // ARCOrg = "arc",
+    BSCOrg = "bsc",
+    // UBOrg = "ub",
     adminIdentityFile = "adminIdentity.json",
 }
 
@@ -149,32 +149,35 @@ service CAClient {
         }
         interfaces: CAInterface
     }
+
     init {
-        global.name.Bsc << {
+        global.name.bsc << {
             C = "ES"
             ST = "Catalunya"
             L = "Barcelona"
             O = "bsc"
         }
     }
+
     main {
         createUser(userInfo)(registerUserResponse) {
-            if (userInfo.attributes.institution == "Athena Research Center") {
-                CAClient.location = ARCCALocation
-                org -> ARCOrg
-            } else if (userInfo.attributes.institution == "Barcelona Supercomputing Center") {
-                CAClient.location = BSCCALocation
-                org -> BSCOrg
-            } else {
-                CAClient.location = UBCALocation
-                org -> UBOrg
-            }
+            //TODO set affiliation based on institution
+            // if (userInfo.attributes.institution == "Athena Research Center") {
+            //     CAClient.location = ARCCALocation
+            //     org -> ARCOrg
+            // } else if (userInfo.attributes.institution == "Barcelona Supercomputing Center") {
+            CAClient.location = BSCCALocation
+            org = BSCOrg
+            // } else {
+            //     CAClient.location = UBCALocation
+            //     org -> UBOrg
+            // }
             readFile@File({ filename = adminIdentityFile, format = "json" })(adminId)
             userRegData << {
                 adminIdentity << adminId
                 userRegistrationId = userInfo.email
                 type = "client"
-                affiliation = affiliation
+                affiliation = "" //no need for affiliation here!!! 
             }
             registerUser@CAClient(userRegData)(regResponse)
             //TODO error handling
