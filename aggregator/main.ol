@@ -40,6 +40,12 @@ service Aggregator {
             contentType = "json"
             format = "json"
             compression = false 
+            method = "POST"
+            response << {
+                headers.("Access-Control-Allow-Origin") = "*"
+                headers.("Access-Control-Allow-Methods") = "GET, POST, OPTIONS"
+                headers.("Access-Control-Allow-Headers") = "Authorization, Content-Type"
+            }
             ssl << {
                 protocol = "TLSv1.2"
                 keyStoreFormat = "PKCS12"
