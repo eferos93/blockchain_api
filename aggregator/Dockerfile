@@ -1,4 +1,4 @@
-FROM jolielang/jolie:1.13.0
+FROM jolielang/jolie:1.13.4-alpine
 
 WORKDIR /app
 COPY . .
