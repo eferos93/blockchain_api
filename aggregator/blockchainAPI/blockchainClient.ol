@@ -50,6 +50,7 @@ service BlockchainAPI {
     outputPort BlockchainAPIPort {
         protocol: http {
             format = "json"
+            debug = true
             // contentType = "application/json"
             osc.initialize << {
                 method = "post"
