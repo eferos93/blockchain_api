@@ -151,12 +151,27 @@ service CAClient {
     }
 
     init {
-        global.name.bsc << {
-            C = "ES"
-            ST = "Catalunya"
-            L = "Barcelona"
-            O = "bsc"
+        global.name << {
+            bsc << {
+                C = "ES"
+                ST = "Catalunya"
+                L = "Barcelona"
+                O = "bsc"
+            }
+            ub << {
+                C = "ES"
+                ST = "Catalunya"
+                L = "Barcelona"
+                O = "ub"
+            }
+            arc << {
+                C = "GR"
+                ST = "Attica"
+                L = "Athens"
+                O = "athena"
+            }
         }
+        
     }
 
     main {
