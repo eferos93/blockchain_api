@@ -77,19 +77,29 @@ service BlockchainAPI {
         interfaces: BlockchainServiceInterface
     }
 
+    define checkExistence 
+    {
+        match@StringUtils(transactionReq.institution {.regex = regex})(matchRes)
+    }
+
     main {
         executeTransaction(transactionReq)(response) {
-            // if (transactionReq.institution == "Athena Research Center") {
-            //     BlockchainAPIPort.location = ARCLocation
-            // } else if (transactionReq.institution == "Barcelona Supercomputing Center") {
+            regex = "(?i).*(athena).*"
+            checkExistence 
+            if (matchRes == 1) {
+                BlockchainAPIPort.location = ARCLocation
+            }
+            regex = "(?i).*(bsc|supercomputing).*"
+            checkExistence 
+            if (matchRes == 1) {
                 BlockchainAPIPort.location = BSCCALocation
-            // } else if (transactionReq.institution == "University of Barcelona") {
-                // BlockchainAPIPort.location = UBCALocation
-            // } else {
-            //     // Handle unknown institution
-            //     println@Console("Unknown institution: " + transactionReq.institution)()
-            //     exit
-            // }
+            }
+            regex = "(?i).*(university|ub).*"
+            checkExistence 
+            if (matchRes == 1) {
+                BlockchainAPIPort.location = UBCALocation
+            }
+
             initialize@BlockchainAPIPort({ enrollmentId = transactionReq.enrollmentId, secret = transactionReq.secret })(initResponse)
             println@Console("Initialized blockchain client for user: " + transactionReq.enrollmentId)()
             if (transactionReq.type == "query") {
