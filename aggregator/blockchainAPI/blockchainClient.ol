@@ -37,8 +37,8 @@ interface BlockchainServiceInterface {
 
 constants {
     ARCLocation = "socket://localhost:7070", //TODO this will not work, because its an orderer, need to point to peer
-    BSCCALocation = "socket://blockchain-api-filestore:3000",
-    UBCALocation = "socket://localhost:9051"
+    BSCLocation = "socket://blockchain-api-filestore:3000",
+    UBLocation = "socket://localhost:9051"
 }
 
 service BlockchainAPI {
@@ -92,12 +92,12 @@ service BlockchainAPI {
             regex = "(?i).*(bsc|supercomputing).*"
             checkExistence 
             if (matchRes == 1) {
-                BlockchainAPIPort.location = BSCCALocation
+                BlockchainAPIPort.location = BSCLocation
             }
             regex = "(?i).*(university|ub).*"
             checkExistence 
             if (matchRes == 1) {
-                BlockchainAPIPort.location = UBCALocation
+                BlockchainAPIPort.location = UBLocation
             }
 
             initialize@BlockchainAPIPort({ enrollmentId = transactionReq.enrollmentId, secret = transactionReq.secret })(initResponse)

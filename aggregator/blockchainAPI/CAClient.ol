@@ -118,12 +118,13 @@ interface CAInterface {
 }
 
 constants {
-    // ARCCALocation = "socket://localhost:8004",
+    // TODO: set correct CA locations, maybe better passing them when starting the servicd
+    ARCCALocation = "socket://localhost:8004",
     BSCCALocation = "socket://blockchain-api-filestore:3000",
-    // UBCALocation = "socket://localhost:10004",
-    // ARCOrg = "arc",
+    UBCALocation = "socket://localhost:10004",
+    ARCOrg = "arc",
     BSCOrg = "bsc",
-    // UBOrg = "ub",
+    UBOrg = "ub",
     adminIdentityFile = "adminIdentity.json",
 }
 
@@ -174,19 +175,32 @@ service CAClient {
         
     }
 
+    define checkExistence 
+    {
+        match@StringUtils(transactionReq.institution {.regex = regex})(matchRes)
+    }
+
     main {
         createUser(userInfo)(registerUserResponse) {
-            //TODO set affiliation based on institution
-            // if (userInfo.attributes.institution == "Athena Research Center") {
-            //     CAClient.location = ARCCALocation
-            //     org -> ARCOrg
-            // } else if (userInfo.attributes.institution == "Barcelona Supercomputing Center") {
-            CAClient.location = BSCCALocation
-            org = BSCOrg
-            // } else {
-            //     CAClient.location = UBCALocation
-            //     org -> UBOrg
-            // }
+            regex = "(?i).*(athena).*"
+            checkExistence 
+            if (matchRes == 1) {
+                CAClient.location = ARCCALocation
+                org = ARCOrg
+            }
+            regex = "(?i).*(bsc|supercomputing).*"
+            checkExistence 
+            if (matchRes == 1) {
+                CAClient.location = BSCCALocation
+                org = BSCOrg
+            }
+            regex = "(?i).*(university|ub).*"
+            checkExistence 
+            if (matchRes == 1) {
+                CAClient.location = UBCALocation
+                org = UBOrg
+            }
+            //TODO error handling if no match
             readFile@File({ filename = adminIdentityFile, format = "json" })(adminId)
             userRegData << {
                 adminIdentity << adminId
