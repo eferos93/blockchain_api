@@ -1,4 +1,5 @@
 from file import File 
+from string-utils import StringUtils
 
 type AdminIdentity {
     enrollmentId: string
@@ -130,6 +131,7 @@ constants {
 
 service CAClient {
     embed File as File 
+    embed StringUtils as StringUtils
     
     execution: concurrent
 

@@ -7,7 +7,7 @@ from string_utils import StringUtils
 
 interface AggregatorInterface {
     RequestResponse: 
-        executeTransaction(TransactionRequest)(undefined) //TODO define proper response type
+        executeTransaction(TransactionRequest)(undefined) throws Unauthorized, UserRegistrationFailed, TransactionFailed //TODO define proper response type
 } 
 
 type TransactionRequest {
@@ -52,6 +52,13 @@ service Aggregator {
                 keyStore = "./certs/keystore.p12"
                 keyStorePassword = "fabrero"
             }
+            osc.executeTransaction << {
+                statusCodes << {
+                    Unauthorized = 401
+                    UserRegistrationFailed = 500
+                    TransactionFailed = 500
+                }
+            }
         }
         interfaces: AggregatorInterface
     }
@@ -66,34 +73,57 @@ service Aggregator {
             userInfo.attributes.institution = "bsc"
             userInfo.attributes.family_name = "Tsoukala"
             userInfo.attributes.given_name = "Chara"
-            if (!is_defined(userInfo.attributes.bcsecret) || userInfo.attributes.bcsecret == "") {
-                createUser@CAClient(userInfo)(registerUserResponse)
-                if (registerUserResponse.success) {
+            scope (checkUserRegistration) 
+            {
+                install( NotRegistered => {
+                    println@Console("User is not registered in the network, registering...")()
+                    createUser@CAClient(userInfo)(registerUserResponse)
                     userInfo.attributes.bcsecret = registerUserResponse.secret
-                    
                     updateUserData@Keycloak({ token = transactionReq.accessToken, attributes << userInfo.attributes })(success)
-                } else {
-                    // handle registration failure
-                    println@Console("User registration failed")()
-                }
-                executeTranReq << {
-                    enrollmentId = userInfo.email
-                    secret = userInfo.attributes.bcsecret
-                    type = transactionReq.transaction.type
-                    institution = userInfo.attributes.institution 
-                    transaction << transactionReq.transaction.transaction
-                }
-                executeTransaction@BlockchainAPI(executeTranReq)(transactionResponse)
-            } else {
-                executeTranReq << {
-                    enrollmentId = userInfo.email
-                    secret = userInfo.attributes.bcsecret
-                    type = transactionReq.transaction.type
-                    institution = userInfo.attributes.institution 
-                    transaction << transactionReq.transaction.transaction
-                }
-                executeTransaction@BlockchainAPI(executeTranReq)(transactionResponse)
+                } )
+
+                if (!is_defined(userInfo.attributes.bcsecret) || userInfo.attributes.bcsecret == "") {
+                    throw( NotRegistered )
+                } 
             }
+            
+            executeTranReq << {
+                    enrollmentId = userInfo.email
+                    secret = userInfo.attributes.bcsecret
+                    type = transactionReq.transaction.type
+                    institution = userInfo.attributes.institution 
+                    transaction << transactionReq.transaction.transaction
+                }
+            executeTransaction@BlockchainAPI(executeTranReq)(transactionResponse)
+
+            // if (!is_defined(userInfo.attributes.bcsecret) || userInfo.attributes.bcsecret == "") {
+            //     createUser@CAClient(userInfo)(registerUserResponse)
+            //     if (registerUserResponse.success) {
+            //         userInfo.attributes.bcsecret = registerUserResponse.secret
+                    
+            //         updateUserData@Keycloak({ token = transactionReq.accessToken, attributes << userInfo.attributes })(success)
+            //     } else {
+            //         // handle registration failure
+            //         println@Console("User registration failed")()
+            //     }
+            //     executeTranReq << {
+            //         enrollmentId = userInfo.email
+            //         secret = userInfo.attributes.bcsecret
+            //         type = transactionReq.transaction.type
+            //         institution = userInfo.attributes.institution 
+            //         transaction << transactionReq.transaction.transaction
+            //     }
+            //     executeTransaction@BlockchainAPI(executeTranReq)(transactionResponse)
+            // } else {
+            //     executeTranReq << {
+            //         enrollmentId = userInfo.email
+            //         secret = userInfo.attributes.bcsecret
+            //         type = transactionReq.transaction.type
+            //         institution = userInfo.attributes.institution 
+            //         transaction << transactionReq.transaction.transaction
+            //     }
+            //     executeTransaction@BlockchainAPI(executeTranReq)(transactionResponse)
+            // }
             
             
             println@Console("Transaction executed")()

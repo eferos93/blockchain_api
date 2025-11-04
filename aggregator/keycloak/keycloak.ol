@@ -61,8 +61,8 @@ interface KeycloakServerInterface {
     RequestResponse:
         // GetVaToken(VATokenRequest)(VAToken),
         // GetCAToken(CATokenRequest)(CAToken),
-        GetUserProfileData(void)(undefined),
-        PutUserProfileData(UpdateUserProfileRequest)(undefined) //TODO define proper response type
+        GetUserProfileData(void)(undefined) throws Unauthorized, //TODO define proper response type
+        PutUserProfileData(UpdateUserProfileRequest)(undefined) throws Unauthorized //TODO define proper response type
 }
 
 type NewUserAttributes {
@@ -73,8 +73,8 @@ type NewUserAttributes {
 interface KeycloakServiceInterface {
     RequestResponse:
         isUserRegistered(string)(bool),
-        updateUserData(NewUserAttributes)(undefined),
-        getUserData(string)(UserProfileData)
+        updateUserData(NewUserAttributes)(undefined) throws Unauthorized,
+        getUserData(string)(UserProfileData) throws Unauthorized
 }
 
 service Keycloak {
@@ -108,6 +108,9 @@ service Keycloak {
             osc.GetUserProfileData << {
                 alias = "auth/realms/datatools4heart/account/"
                 method = "get"
+                statusCodes << {
+                    Unauthorized = 401
+                }
                 // format = "json"
                 // addHeader << {
                 //     header[0] << "Accept" { value="application/json" }
@@ -119,6 +122,9 @@ service Keycloak {
             osc.PutUserProfileData << {
                 alias = "auth/realms/datatools4heart/account/"
                 method = "post"
+                statusCodes << {
+                    Unauthorized = 401
+                }
                 // format = "json"
             }
         }
@@ -129,6 +135,8 @@ service Keycloak {
         location: "local"
         interfaces: KeycloakServiceInterface
     }
+
+    
 
     main {
         [updateUserData(newUserAttr)(success) {
