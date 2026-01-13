@@ -15,24 +15,6 @@ var GlobalKeystore KeystoreManager
 // InitializeKeystore initializes the global keystore
 func InitializeKeystore(keystoreType, config, masterPassword string) error {
 	switch keystoreType {
-	case "openbao":
-		// OpenBao keystore
-		var openbaoConfig OpenBaoConfig
-		if err := json.Unmarshal([]byte(config), &openbaoConfig); err != nil {
-			return fmt.Errorf("failed to parse OpenBao config: %w", err)
-		}
-
-		openbaoClient, err := NewOpenBaoKeystore(openbaoConfig)
-		if err != nil {
-			return fmt.Errorf("failed to initialize OpenBao keystore: %w", err)
-		}
-
-		// Test connection
-		if err := openbaoClient.HealthCheck(); err != nil {
-			return fmt.Errorf("OpenBao health check failed: %w", err)
-		}
-
-		GlobalKeystore = openbaoClient
 	case "file":
 		// File-based encrypted keystore
 		var fileConfig FileKeystoreConfig
@@ -52,7 +34,7 @@ func InitializeKeystore(keystoreType, config, masterPassword string) error {
 
 		GlobalKeystore = fileClient
 	default:
-		return fmt.Errorf("unsupported keystore type: %s (supported: openbao, file)", keystoreType)
+		return fmt.Errorf("unsupported keystore type: %s (supported: file)", keystoreType)
 	}
 	return nil
 }
