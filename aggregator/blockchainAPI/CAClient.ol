@@ -123,7 +123,7 @@ constants {
     ARCCALocation = "socket://localhost:8004",
     BSCCALocation = "socket://blockchain-api-filestore:3000",
     UBCALocation = "socket://localhost:10004",
-    ARCOrg = "arc",
+    ARCOrg = "athenapeers",
     BSCOrg = "bsc",
     UBOrg = "ub",
     adminIdentityFile = "adminIdentity.json",

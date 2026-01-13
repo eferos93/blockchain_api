@@ -44,7 +44,7 @@ services:
     networks:
       - dev
     ports:
-      - "8099:8099"
+      - "7000:7000"
     profiles:
       - test-filestore
 

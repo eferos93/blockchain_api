@@ -34,7 +34,7 @@ service Aggregator {
     execution: concurrent
 
     inputPort ip {
-        location: "socket://localhost:8099"
+        location: "socket://localhost:7000"
         protocol: https {
             debug = true
             contentType = "json"
