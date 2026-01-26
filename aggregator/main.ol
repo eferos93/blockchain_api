@@ -5,9 +5,14 @@ from .blockchainAPI.blockchainClient import BlockchainAPI
 from console import Console
 from string_utils import StringUtils
 
+type ErrorMessage {
+    error: string
+    errorDescription: string
+}
+
 interface AggregatorInterface {
     RequestResponse: 
-        executeTransaction(TransactionRequest)(undefined) throws Unauthorized, UserRegistrationFailed, TransactionFailed //TODO define proper response type
+        executeTransaction(TransactionRequest)(undefined) throws Unauthorized( ErrorMessage ), UserRegistrationFailed, TransactionFailed //TODO define proper response type
 } 
 
 type TransactionRequest {
@@ -69,10 +74,17 @@ service Aggregator {
 
 	main {
        [executeTransaction(transactionReq)(transactionResponse) {
-            getUserData@Keycloak(transactionReq.accessToken)(userInfo)
-            userInfo.attributes.institution = "bsc"
-            userInfo.attributes.family_name = "Tsoukala"
-            userInfo.attributes.given_name = "Chara"
+            scope (getUserData) {
+                install( Unauthorized => 
+                    println@Console("Unauthorized access token")()
+                    throw( Unauthorized, { error = "Unauthorized", errorDescription = "Access token is invalid or expired" } )
+                )
+                getUserData@Keycloak(transactionReq.accessToken)(userInfo)
+            }
+            // This three lines of code for DEMO purposes only, to predefine user attributes
+            // userInfo.attributes.institution = "bsc"
+            // userInfo.attributes.family_name = "Tsoukala"
+            // userInfo.attributes.given_name = "Chara"
             scope (checkUserRegistration) 
             {
                 install( NotRegistered => {
@@ -87,15 +99,18 @@ service Aggregator {
                 } 
             }
             
-            executeTranReq << {
+            scope (executeTransaction) 
+            {
+                executeTranReq << {
                     enrollmentId = userInfo.email
                     secret = userInfo.attributes.bcsecret
                     type = transactionReq.transaction.type
                     institution = userInfo.attributes.institution 
                     transaction << transactionReq.transaction.transaction
                 }
-            executeTransaction@BlockchainAPI(executeTranReq)(transactionResponse)
-
+                executeTransaction@BlockchainAPI(executeTranReq)(transactionResponse)
+            }   
+            
             // if (!is_defined(userInfo.attributes.bcsecret) || userInfo.attributes.bcsecret == "") {
             //     createUser@CAClient(userInfo)(registerUserResponse)
             //     if (registerUserResponse.success) {
