@@ -80,25 +80,27 @@ service Aggregator {
                     throw( Unauthorized, { error = "Unauthorized", errorDescription = "Access token is invalid or expired" } )
                 )
                 getUserData@Keycloak(transactionReq.accessToken)(userInfo)
-            }
+            
             // This three lines of code for DEMO purposes only, to predefine user attributes
             // userInfo.attributes.institution = "bsc"
             // userInfo.attributes.family_name = "Tsoukala"
             // userInfo.attributes.given_name = "Chara"
-            scope (checkUserRegistration) 
-            {
-                install( NotRegistered => {
-                    println@Console("User is not registered in the network, registering...")()
-                    createUser@CAClient(userInfo)(registerUserResponse)
-                    userInfo.attributes.bcsecret = registerUserResponse.secret
-                    updateUserData@Keycloak({ token = transactionReq.accessToken, attributes << userInfo.attributes })(success)
-                } )
+                scope (checkUserRegistration) {
+                    
+                    install( 
+                        NotRegistered => {
+                            println@Console("User is not registered in the network, registering...")()
+                            createUser@CAClient(userInfo)(registerUserResponse)
+                            userInfo.attributes.bcsecret = registerUserResponse.secret
+                            updateUserData@Keycloak({ token = transactionReq.accessToken, attributes << userInfo.attributes })(success)
+                        }
+                    )
 
-                if (!is_defined(userInfo.attributes.bcsecret) || userInfo.attributes.bcsecret == "") {
-                    throw( NotRegistered )
-                } 
+                    if (!is_defined(userInfo.attributes.bcsecret) || userInfo.attributes.bcsecret == "") {
+                        throw( NotRegistered )
+                    } 
+                }
             }
-            
             scope (executeTransaction) 
             {
                 executeTranReq << {
