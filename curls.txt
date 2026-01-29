@@ -4,11 +4,11 @@ curl  http://localhost:3000/client/invoke -H "Content-Type: application/json" -d
 
 curl "http://localhost:3000/client/query?channelid=dt4h&chaincodeid=dt4hCC&function=GetUserHistory&args=blockclient" -H "Accept: application/json"
 
-curl "http://localhost:8099/executeTransaction" -H "Content-Type: application/json" -d '{ "accessToken": "" 
+curl "http://localhost:7000/executeTransaction" -H "Content-Type: application/json" -d '{ "accessToken": "" 
 "transaction": { "type": "invoke", "transaction": {"chaincodeid": "dt4hCC", "channelid": "dt4h", "function": "LogQuery", "args": ["select metadata from test-dataset"]}}}'
 
-curl "http://localhost:8099/executeTransaction" -H "Content-Type: application/json" -d '{ "accessToken": "" 
+curl "http://localhost:7000/executeTransaction" -H "Content-Type: application/json" -d '{ "accessToken": "" 
 "transaction": { "type": "query", "transaction": {"chaincodeid": "dt4hCC", "channelid": "dt4h", "function": "GetUserHistory", "args": ["kkech@athenarc.gr"]}}}'
 
-curl -v "https://blockchain1.imsi.athenarc.gr:8099/executeTransaction" -H "Content-Type: application/json" -d '{ "accessToken": "" 
+curl -v "https://blockchain1.imsi.athenarc.gr:7000/executeTransaction" -H "Content-Type: application/json" -d '{ "accessToken": "" 
 "transaction": { "type": "query", "transaction": {"chaincodeid": "dt4hCC", "channelid": "dt4h", "function": "GetUserHistory", "args": ["kkech@athenarc.gr"]}}}'
