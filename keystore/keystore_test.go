@@ -89,93 +89,6 @@ func contains(s, substr string) bool {
 	return len(s) >= len(substr) && s[:len(substr)] == substr
 }
 
-func TestKeystoreInitialization(t *testing.T) {
-	// Test unsupported keystore type
-	err := keystore.InitializeKeystore("unsupported", "", "")
-	if err == nil {
-		t.Error("Should return error for unsupported keystore type")
-	}
-
-	// Test invalid OpenBao config
-	err = keystore.InitializeKeystore("openbao", "invalid json", "")
-	if err == nil {
-		t.Error("Should return error for invalid OpenBao config")
-	}
-
-	// Test valid OpenBao config but without connection
-	validConfig := `{
-		"address": "http://localhost:8200",
-		"token": "test-token",
-		"secretPath": "blockchain-keys/",
-		"userPath": "auth/userpass/users/",
-		"loginPath": "auth/userpass/login/"
-	}`
-	err = keystore.InitializeKeystore("openbao", validConfig, "")
-	// This should fail because we don't have a real OpenBao instance running
-	if err == nil {
-		t.Log("OpenBao connection succeeded (if this passes, you have OpenBao running)")
-	} else {
-		t.Logf("Expected OpenBao connection failure: %v", err)
-	}
-}
-
-func TestOpenBaoConfig(t *testing.T) {
-	tests := []struct {
-		name        string
-		config      keystore.OpenBaoConfig
-		expectError bool
-	}{
-		{
-			name: "valid config",
-			config: keystore.OpenBaoConfig{
-				Address:    "http://localhost:8200",
-				Token:      "test-token",
-				SecretPath: "blockchain-keys/",
-				UserPath:   "auth/userpass/users/",
-				LoginPath:  "auth/userpass/login/",
-			},
-			expectError: false,
-		},
-		{
-			name: "missing address",
-			config: keystore.OpenBaoConfig{
-				Token:      "test-token",
-				SecretPath: "blockchain-keys/",
-			},
-			expectError: true,
-		},
-		{
-			name: "missing token",
-			config: keystore.OpenBaoConfig{
-				Address:    "http://localhost:8200",
-				SecretPath: "blockchain-keys/",
-			},
-			expectError: true,
-		},
-		{
-			name: "defaults applied",
-			config: keystore.OpenBaoConfig{
-				Address: "http://localhost:8200",
-				Token:   "test-token",
-				// SecretPath, UserPath, LoginPath should get defaults
-			},
-			expectError: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := keystore.NewOpenBaoKeystore(tt.config)
-			if tt.expectError && err == nil {
-				t.Error("Expected error but got none")
-			}
-			if !tt.expectError && err != nil {
-				t.Errorf("Unexpected error: %v", err)
-			}
-		})
-	}
-}
-
 func TestCertificateValidation(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -274,18 +187,18 @@ func TestPrivateKeyToPEMConversion(t *testing.T) {
 	}
 }
 
-// Mock OpenBao keystore for testing without actual OpenBao instance
-type MockOpenBaoKeystore struct {
+// Mock InMemory keystore for testing
+type MockInMemoryKeystore struct {
 	data map[string]*keystore.KeystoreEntry
 }
 
-func NewMockOpenBaoKeystore() *MockOpenBaoKeystore {
-	return &MockOpenBaoKeystore{
+func NewMockInMemoryKeystore() *MockInMemoryKeystore {
+	return &MockInMemoryKeystore{
 		data: make(map[string]*keystore.KeystoreEntry),
 	}
 }
 
-func (m *MockOpenBaoKeystore) StoreKey(username, password string, privateKeyPEM, certificatePEM, tlsCertificatePEM []byte) error {
+func (m *MockInMemoryKeystore) StoreKey(username, password string, privateKeyPEM, certificatePEM, tlsCertificatePEM []byte) error {
 	if username == "" || password == "" {
 		return fmt.Errorf("username and password required")
 	}
@@ -302,7 +215,7 @@ func (m *MockOpenBaoKeystore) StoreKey(username, password string, privateKeyPEM,
 	return nil
 }
 
-func (m *MockOpenBaoKeystore) RetrieveKey(username, password string) (*keystore.KeystoreEntry, error) {
+func (m *MockInMemoryKeystore) RetrieveKey(username, password string) (*keystore.KeystoreEntry, error) {
 	if username == "" || password == "" {
 		return nil, fmt.Errorf("username and password required")
 	}
@@ -315,7 +228,7 @@ func (m *MockOpenBaoKeystore) RetrieveKey(username, password string) (*keystore.
 	return entry, nil
 }
 
-func (m *MockOpenBaoKeystore) DeleteKey(username, password string) error {
+func (m *MockInMemoryKeystore) DeleteKey(username, password string) error {
 	if username == "" || password == "" {
 		return fmt.Errorf("username and password required")
 	}
@@ -324,17 +237,17 @@ func (m *MockOpenBaoKeystore) DeleteKey(username, password string) error {
 	return nil
 }
 
-func (m *MockOpenBaoKeystore) Close() error {
+func (m *MockInMemoryKeystore) Close() error {
 	return nil
 }
 
-func (m *MockOpenBaoKeystore) HealthCheck() error {
+func (m *MockInMemoryKeystore) HealthCheck() error {
 	return nil
 }
 
-func TestMockKeystoreOperations(t *testing.T) {
+func TestMockInMemoryKeystoreOperations(t *testing.T) {
 	// Test with mock keystore to verify the interface works correctly
-	mockKeystore := NewMockOpenBaoKeystore()
+	mockKeystore := NewMockInMemoryKeystore()
 
 	// Store the mock keystore in global for testing
 	originalKeystore := keystore.GlobalKeystore
@@ -385,7 +298,7 @@ func TestMockKeystoreOperations(t *testing.T) {
 
 func TestKeystoreIntegrationWithManager(t *testing.T) {
 	// Test integration between manager functions and keystore
-	mockKeystore := NewMockOpenBaoKeystore()
+	mockKeystore := NewMockInMemoryKeystore()
 
 	// Store the mock keystore in global for testing
 	originalKeystore := keystore.GlobalKeystore
@@ -423,7 +336,7 @@ func TestKeystoreIntegrationWithManager(t *testing.T) {
 }
 
 func TestErrorHandling(t *testing.T) {
-	mockKeystore := NewMockOpenBaoKeystore()
+	mockKeystore := NewMockInMemoryKeystore()
 
 	// Test with empty username
 	err := mockKeystore.StoreKey("", "password", []byte(testPrivateKey), []byte(testCertificate), []byte(testCertificate))

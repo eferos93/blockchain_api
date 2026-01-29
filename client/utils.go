@@ -2,9 +2,11 @@ package client
 
 import (
 	"blockchain-api/keystore"
+	"crypto"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
+	"encoding/pem"
 	"fmt"
 	"log"
 	"os"
@@ -41,7 +43,7 @@ func IdentityHashFromPEM(pem string) string {
 func Initialize(enrollmentId, userSecret string) (*client.Gateway, error) {
 	// userSecret, err := base64.StdEncoding.DecodeString(userSecretB64)
 	log.Printf("Initializing connection for %s...\n", orgSetup.OrgName)
-	clientConnection, err := newGrpcConnection()
+	clientConnection, err := newGrpcConnection(enrollmentId, userSecret)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gRPC connection: %w", err)
 	}
@@ -86,11 +88,14 @@ func RemoveGateway(sessionID string) {
 }
 
 // newGrpcConnection creates a gRPC connection to the Gateway server.
-func newGrpcConnection() (*grpc.ClientConn, error) {
-	// TODO: implement TLS certificate loading from keystore if UseKeystore is true
-	certificate, err := loadCertificate(orgSetup.TLSCertPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load TLS certificate: %w", err)
+func newGrpcConnection(enrollmentId, userSecret string) (*grpc.ClientConn, error) {
+	var certificate *x509.Certificate
+	var err error
+	if orgSetup.TLSCertPath != "" {
+		certificate, err = loadCertificate(orgSetup.TLSCertPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load TLS certificate: %w", err)
+		}
 	}
 
 	certPool := x509.NewCertPool()
@@ -111,7 +116,7 @@ func newIdentity(enrollmentID string, userSecret []byte) (*identity.X509Identity
 	var certficatePEM []byte
 	var err error
 
-	if orgSetup.CertPath == "" && orgSetup.KeyPath == "" && orgSetup.TLSCertPath == "" {
+	if orgSetup.CertPath == "" && orgSetup.KeyPath == "" {
 		// Load from keystore
 		certficatePEM, _, err = keystore.GetKeyForFabricClient(enrollmentID, orgSetup.MSPID, string(userSecret))
 		if err != nil {
@@ -135,16 +140,38 @@ func newIdentity(enrollmentID string, userSecret []byte) (*identity.X509Identity
 	return id, nil
 }
 
+func parseECPrivateKey(privateKeyPEM []byte) (crypto.PrivateKey, error) {
+	// Step 1: Decode PEM block
+	block, _ := pem.Decode(privateKeyPEM)
+	if block == nil {
+		return nil, fmt.Errorf("failed to decode PEM block")
+	}
+
+	// Step 2: Parse EC private key from DER bytes
+	privateKey, err := x509.ParseECPrivateKey(block.Bytes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse EC private key: %w", err)
+	}
+
+	return privateKey, nil
+}
+
 // newSign creates a function that generates a digital signature from a message digest using a private key.
 func newSign(enrollmentID string, userSecret []byte) (identity.Sign, error) {
 	var privateKeyPEM []byte
+	var privateKey crypto.PrivateKey
 	var err error
 
-	if orgSetup.KeyPath == "" && orgSetup.CertPath == "" && orgSetup.TLSCertPath == "" {
+	if orgSetup.KeyPath == "" && orgSetup.CertPath == "" {
 		// Load from keystore
 		_, privateKeyPEM, err = keystore.GetKeyForFabricClient(enrollmentID, orgSetup.MSPID, string(userSecret))
 		if err != nil {
 			return nil, fmt.Errorf("failed to get key from keystore: %w", err)
+		}
+
+		privateKey, err = parseECPrivateKey(privateKeyPEM)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse private key PEM: %w", err)
 		}
 
 	} else {
@@ -155,11 +182,10 @@ func newSign(enrollmentID string, userSecret []byte) (identity.Sign, error) {
 		}
 		privateKeyPEM, err = os.ReadFile(path.Join(orgSetup.KeyPath, files[0].Name()))
 
-	}
-
-	privateKey, err := identity.PrivateKeyFromPEM(privateKeyPEM)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse private key PEM: %w", err)
+		privateKey, err = identity.PrivateKeyFromPEM(privateKeyPEM)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse private key PEM: %w", err)
+		}
 	}
 
 	sign, err := identity.NewPrivateKeySign(privateKey)

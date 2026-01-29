@@ -78,7 +78,7 @@ test_keystore_type() {
         "mspId": "bscMSP",
         "useKeystore": true,
         "enrollmentId": "testuser_'$type'",
-        "tlsCertPath": "./identities/blockClient/msp/tlscacerts/ca.crt",
+        "tlsCertPath": "./identities/blockClient/msp/tlscacerts/cert.pem",
         "peerEndpoint": "dns:///localhost:9051",
         "gatewayPeer": "peer0.bsc.dt4h.com"
       }' || echo "Client initialization failed (expected if CA enrollment failed)"
@@ -147,7 +147,7 @@ curl -s -X POST http://localhost:3000/client/ \
     "mspId": "bscMSP",
     "useKeystore": true,
     "enrollmentId": "admin",
-    "tlsCertPath": "./identities/blockClient/msp/tlscacerts/ca.crt",
+    "tlsCertPath": "./identities/blockClient/msp/tlscacerts/cert.pem",
     "peerEndpoint": "dns:///localhost:9051",
     "gatewayPeer": "peer0.bsc.dt4h.com"
   }'

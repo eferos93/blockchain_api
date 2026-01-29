@@ -1,0 +1,48 @@
+curl -v -d "client_id=va-webapp" -d "username=kkech@athenarc.gr" \
+-d "password=123456" -d "grant_type=password" \
+https://inb.bsc.es/auth/realms/datatools4heart/protocol/openid-connect/token
+
+curl -X POST -d "client_id=dt4h-ca" -d \
+"client_secret=ZTZqz6wBXVV9wm8xtBkiEQEOPL9JGj5U" --data-urlencode \
+"grant_type=urn:ietf:params:oauth:grant-type:token-exchange" -d \
+"subject_token=eyJhbGciOiJFZERTQSIsInR5cCIgOiAiSldUIiwia2lkIiA6ICItOU9YSFRmcUlNOGZ0OTE0cy1MUXZxUlByWU9UTVk4MkJsSVc1NXdmYmljIn0.eyJleHAiOjE3NTk0MTc3OTgsImlhdCI6MTc1OTQxNDE5OCwianRpIjoiNTFjM2YxZjAtNjc2NC00OTE5LWI1YTgtMTdiNWZmMjZmYWY5IiwiaXNzIjoiaHR0cHM6Ly9pbmIuYnNjLmVzL2F1dGgvcmVhbG1zL2RhdGF0b29sczRoZWFydCIsImF1ZCI6ImFjY291bnQiLCJzdWIiOiIwNDIzYTVmMy0zYWE2LTQ5YTgtYWJkZi00ODVlMjNkODA4YmMiLCJ0eXAiOiJCZWFyZXIiLCJhenAiOiJmbF9tYW5hZ2VyX2FwaSIsInNpZCI6ImJiMDQyZjRkLTkzYjctNGJhNy1hNmMxLTc5NmM0ZWRmMjdhNSIsInJlc291cmNlX2FjY2VzcyI6eyJhY2NvdW50Ijp7InJvbGVzIjpbIm1hbmFnZS1hY2NvdW50IiwibWFuYWdlLWFjY291bnQtbGlua3MiLCJ2aWV3LXByb2ZpbGUiXX19LCJzY29wZSI6Im9wZW5pZCBwcm9maWxlIGVtYWlsIiwiaW5zdGl0dXRpb24iOiJBdGhlbmEgUi5DLiIsImVtYWlsX3ZlcmlmaWVkIjpmYWxzZSwibmFtZSI6IkNoYXJhIFRzb3VrYWxhIiwicHJlZmVycmVkX3VzZXJuYW1lIjoieHRzb3VrYWxhQGdtYWlsLmNvbSIsImVtYWlsIjoieHRzb3VrYWxhQGdtYWlsLmNvbSJ9.0bAIfqOiUZuLmpGmtGE7knSVaLgo3dWO3wXuguZIL8o3dKbG19iZ7ts1q8EWJqX-nCLMTtFFIOjsszaVFMnGCg" \
+--data-urlencode \
+"requested_token_type=urn:ietf:params:oauth:token-type:access_token" \
+https://inb.bsc.es/auth/realms/datatools4heart/protocol/openid-connect/token
+
+
+OR DIRECTLY GET TOKEN
+curl -d "client_id=dt4h-ca" -d \
+"client_secret=ZTZqz6wBXVV9wm8xtBkiEQEOPL9JGj5U" -d \
+"username=xtsoukala@gmail.com" -d "password=EH9mRKfqKygtK9c" -d \
+"grant_type=password" \
+https://inb.bsc.es/auth/realms/datatools4heart/protocol/openid-connect/token
+
+
+
+GET USER ACCOUNT 
+curl -v -H "Accept: application/json" -H "Authorization: Bearer " \
+-H "Content-Type: application/json" \
+"https://inb.bsc.es/auth/realms/datatools4heart/account/"
+
+GET USER INFO 
+curl -H "Accept: application/json" -H "Authorization: Bearer " "https://inb.bsc.es/auth/realms/datatools4heart/protocol/openid-connect/userinfo"
+
+
+PUT DATA 
+
+curl -H "Accept: application/json" -H \
+"Authorization: Bearer " -H "Content-Type: application/json" \
+"https://inb.bsc.es/auth/realms/datatools4heart/account/" -d \
+'{
+   "attributes": {
+     "given_name": "Chara",
+     "family_name": "Tsoukala",
+     "institution": "Athena Research Center",
+     "bcsecret": ""
+   }
+}'
+
+
+here you can get certs and public keys to verify token (token has a signature )
+https://inb.bsc.es/auth/realms/datatools4heart/.well-known/openid-configuration

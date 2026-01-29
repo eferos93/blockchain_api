@@ -9,7 +9,7 @@ import (
 
 // TODO: Add a new method to OrgSetup to accept RequestBody directly, do I really need this?
 func QueryWithBody(w http.ResponseWriter, reqBody RequestBody, gateway *client.Gateway) {
-	w.Header().Set("Content-type", "application/json")
+	w.Header().Set("Content-type", "plain/text")
 	fmt.Println("Received Query request")
 	chainCodeName := reqBody.ChaincodeId
 	channelID := reqBody.ChannelId
@@ -23,5 +23,6 @@ func QueryWithBody(w http.ResponseWriter, reqBody RequestBody, gateway *client.G
 		http.Error(w, "Query error from blockchain: "+err.Error(), http.StatusBadRequest)
 		return
 	}
-	w.Write(evaluateResponse)
+	fmt.Fprintf(w, "Query response: %s", evaluateResponse)
+	// w.Write(evaluateResponse)
 }

@@ -1,0 +1,8 @@
+{
+	"image": "jolielang/jolie:1.13.0-dev",
+	"customizations": {
+		"vscode": {
+			"extensions": ["jolie.vscode-jolie"]
+		}
+	}
+}
