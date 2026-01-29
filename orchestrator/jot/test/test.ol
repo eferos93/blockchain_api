@@ -1,7 +1,7 @@
 from assertions import Assertions
 from console import Console
 from string-utils import StringUtils
-from ..main import Aggregator as MainService
+from ..main import Orchestrator as MainService
 
 interface MyTestInterface {
 RequestResponse:

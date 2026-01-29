@@ -38,9 +38,9 @@ services:
     profiles:
       - test-filestore
     
-  aggregator_service:
-    build: ./aggregator
-    container_name: blockchain-api-aggregator
+  orchestrator_service:
+    build: ./orchestrator
+    container_name: blockchain-api-orchestrator
     networks:
       - dev
     ports:

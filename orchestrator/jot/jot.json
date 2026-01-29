@@ -2,7 +2,7 @@
   "params": {
     "main.ol": [
       {
-        "name": "Aggregator",
+        "name": "Orchestrator",
         "params": {}
       }
     ]

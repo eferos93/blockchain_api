@@ -10,7 +10,7 @@ type ErrorMessage {
     errorDescription: string
 }
 
-interface AggregatorInterface {
+interface OrchestratorInterface {
     RequestResponse: 
         executeTransaction(TransactionRequest)(undefined) throws Unauthorized( ErrorMessage ), UserRegistrationFailed, TransactionFailed //TODO define proper response type
 } 
@@ -28,7 +28,7 @@ type TransactionRequest {
     }
 }
 
-service Aggregator {
+service Orchestrator {
     embed Keycloak as Keycloak
     embed File as File
     embed CAClient as CAClient
@@ -65,11 +65,11 @@ service Aggregator {
                 }
             }
         }
-        interfaces: AggregatorInterface
+        interfaces: OrchestratorInterface
     }
 
     init {
-        println@Console("Aggregator service started")()
+        println@Console("Orchestrator service started")()
     }
 
 	main {

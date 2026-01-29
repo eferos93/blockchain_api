@@ -1,7 +1,7 @@
 {
-  "name": "aggregator",
+  "name": "orchestrator",
   "version": "0.0.0",
-  "description": "aggregator service for the blockchain api",
+  "description": "Orchestrator service for the blockchain api",
   "repo": "",
   "keywords": [],
   "author": "eros.fabrici",
