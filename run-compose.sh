@@ -19,19 +19,13 @@ show_usage() {
     echo "Usage: $0 [MODE] [DOCKER_COMPOSE_ARGS...]"
     echo
     echo -e "${GREEN}Available modes:${NC}"
-    echo "  test       - Run only test containers (openbao-test, blockchain-api-test)"
-    echo "  production - Run only production containers (athena, ub, bsc + their openbao)"
-    echo "  all        - Run all containers"
-    echo "  status     - Show status of all containers"
+    echo "  test-filestore - Run filestore test container"
+    echo "  status         - Show status of all containers"
     echo "  stop       - Stop all containers"
     echo "  clean      - Stop and remove all containers and volumes"
     echo
     echo -e "${GREEN}Examples:${NC}"
-    echo "  $0 test                    # Start test containers"
-    echo "  $0 production              # Start production containers"
-    echo "  $0 all                     # Start all containers"
-    echo "  $0 test -d                 # Start test containers in detached mode"
-    echo "  $0 production --build      # Start production containers and rebuild images"
+    echo "  $0 test-filestore          # Start filestore test"
     echo "  $0 status                  # Show container status"
     echo "  $0 stop                    # Stop all containers"
     echo "  $0 clean                   # Clean up everything"
@@ -57,16 +51,6 @@ show_status() {
     echo -e "${BLUE}Container Status:${NC}"
     echo
     docker-compose ps
-    echo
-    echo -e "${BLUE}Profile Information:${NC}"
-    echo -e "${GREEN}Test containers:${NC}"
-    echo "  - openbao-test (port 8203)"
-    echo "  - blockchain-api-test (port 3003)"
-    echo
-    echo -e "${GREEN}Production containers:${NC}"
-    echo "  - openbao-athena (port 8200) + blockchain-api-athena (port 3000)"
-    echo "  - openbao-ub (port 8201) + blockchain-api-ub (port 3001)"
-    echo "  - openbao-bsc (port 8202) + blockchain-api-bsc (port 3002)"
 }
 
 # Function to stop all containers
@@ -93,15 +77,6 @@ MODE="$1"
 shift
 
 case "$MODE" in
-    "test")
-        run_compose "test" "$@"
-        ;;
-    "distributed")
-        run_compose "distributed" "$@"
-        ;;
-    "all")
-        run_compose "all" "$@"
-        ;;
     "test-filestore")
         run_compose "test-filestore" "$@"
         ;;

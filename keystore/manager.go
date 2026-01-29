@@ -15,24 +15,6 @@ var GlobalKeystore KeystoreManager
 // InitializeKeystore initializes the global keystore
 func InitializeKeystore(keystoreType, config, masterPassword string) error {
 	switch keystoreType {
-	case "openbao":
-		// OpenBao keystore
-		var openbaoConfig OpenBaoConfig
-		if err := json.Unmarshal([]byte(config), &openbaoConfig); err != nil {
-			return fmt.Errorf("failed to parse OpenBao config: %w", err)
-		}
-
-		openbaoClient, err := NewOpenBaoKeystore(openbaoConfig)
-		if err != nil {
-			return fmt.Errorf("failed to initialize OpenBao keystore: %w", err)
-		}
-
-		// Test connection
-		if err := openbaoClient.HealthCheck(); err != nil {
-			return fmt.Errorf("OpenBao health check failed: %w", err)
-		}
-
-		GlobalKeystore = openbaoClient
 	case "file":
 		// File-based encrypted keystore
 		var fileConfig FileKeystoreConfig
@@ -52,7 +34,7 @@ func InitializeKeystore(keystoreType, config, masterPassword string) error {
 
 		GlobalKeystore = fileClient
 	default:
-		return fmt.Errorf("unsupported keystore type: %s (supported: openbao, file)", keystoreType)
+		return fmt.Errorf("unsupported keystore type: %s (supported: file)", keystoreType)
 	}
 	return nil
 }
@@ -68,7 +50,7 @@ func StorePrivateKey(enrollmentID, userSecret string, cert, tlsCert []byte, priv
 	if err != nil {
 		return fmt.Errorf("failed to convert private key to PEM: %w", err)
 	}
-	return GlobalKeystore.StoreKey(enrollmentID, userSecret, cert, privateKeyPEM, tlsCert)
+	return GlobalKeystore.StoreKey(enrollmentID, userSecret, privateKeyPEM, cert, tlsCert)
 }
 
 // convertPrivateKeyToPEM converts an ECDSA private key to PEM format
@@ -127,13 +109,9 @@ func GetKeyForFabricClient(enrollmentID, mspID, userSecret string) (certPEM []by
 	}
 
 	// Validate certificate
-	if err := ValidateCertificate([]byte(entry.Certificate)); err != nil {
+	if err := ValidateCertificate(entry.Certificate); err != nil {
 		return nil, nil, fmt.Errorf("certificate validation failed: %w", err)
 	}
 
-	// Return the certificate and private key as byte arrays (PEM format)
-	certPEM = []byte(entry.Certificate)
-	keyPEM = []byte(entry.PrivateKey)
-
-	return certPEM, keyPEM, nil
+	return entry.Certificate, entry.PrivateKey, nil
 }

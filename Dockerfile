@@ -29,7 +29,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 FROM alpine:3.21
 
 # Install ca-certificates for HTTPS
-RUN apk --no-cache add ca-certificates tzdata && \
+RUN apk --no-cache add ca-certificates tzdata openssl && \
     rm -rf /var/cache/apk/*
 
 WORKDIR /app
@@ -39,6 +39,8 @@ COPY --from=build /app/blockchain_api ./
 COPY --from=build /app/README.md ./
 COPY --from=build /app/generate_session_keys.sh ./
 COPY --from=build /app/client ./client
+COPY --from=build /app/standard_credentials.json ./
+
 # Create identities directory (optional copy follows)
 RUN mkdir -p ./identities
 

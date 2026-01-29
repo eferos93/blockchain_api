@@ -3,11 +3,17 @@
 
 set -e
 
+# Check if identities directory exists and remove it
+if [ -d "./identities" ]; then
+    echo "Removing existing identities directory..."
+    sudo rm -rf ./identities
+fi
+
 mkdir -p ./identities/
 
 # Copy the identities folder
 
-# I suppose that the network definition is in fabric/ folder at the same level as blockchain_api
+# I assume that the network definition is in fabric/ folder at the same level as blockchain_api
 sudo cp -r ../fabric/identities/* ./identities/
 sudo chown -R $USER:$USER ./identities/
 

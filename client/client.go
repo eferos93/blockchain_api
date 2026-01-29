@@ -3,11 +3,13 @@ package client
 import (
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sync"
+	"testing"
 
 	"github.com/gorilla/sessions"
 )
@@ -20,16 +22,26 @@ var storeOnce sync.Once
 var orgSetup OrgSetup
 
 func init() {
-	base := filepath.Join("..", "identities", "bsc", "blockclient", "msp")
-	orgSetup = OrgSetup{
-		OrgName:      getEnvWithDefault("ORG_NAME", "bsc"),
-		MSPID:        getEnvWithDefault("MSP_ID", "BscMSP"),
-		CryptoPath:   getEnvWithDefault("CRYPTO_PATH", base),
-		CertPath:     getEnvWithDefault("CERT_PATH", filepath.Join(base, "signcerts", "cert.pem")),
-		KeyPath:      getEnvWithDefault("KEY_PATH", filepath.Join(base, "keystore")),
-		TLSCertPath:  getEnvWithDefault("TLS_CERT_PATH", filepath.Join(base, "tlscacerts", "ca.crt")),
-		PeerEndpoint: getEnvWithDefault("PEER_ENDPOINT", "dns:///localhost:9051"),
-		GatewayPeer:  getEnvWithDefault("GATEWAY_PEER", "peer0.bsc.dt4h.com"),
+	if testing.Testing() {
+		base := filepath.Join("..", "identities", "bsc", "blockclient", "msp")
+		orgSetup = OrgSetup{
+			OrgName:      getEnvWithDefault("ORG_NAME", "bsc"),
+			MSPID:        getEnvWithDefault("MSP_ID", "BscMSP"),
+			CryptoPath:   getEnvWithDefault("CRYPTO_PATH", base),
+			CertPath:     getEnvWithDefault("CERT_PATH", filepath.Join(base, "signcerts", "cert.pem")),
+			KeyPath:      getEnvWithDefault("KEY_PATH", filepath.Join(base, "keystore")),
+			TLSCertPath:  getEnvWithDefault("TLS_CERT_PATH", filepath.Join(base, "tlscacerts", "cert.pem")),
+			PeerEndpoint: getEnvWithDefault("PEER_ENDPOINT", "dns:///localhost:8020"),
+			GatewayPeer:  getEnvWithDefault("GATEWAY_PEER", "peer0.bsc.dt4h.com"),
+		}
+	} else {
+		orgSetup = OrgSetup{
+			OrgName:      getEnvWithDefault("ORG_NAME", "bsc"),
+			MSPID:        getEnvWithDefault("MSP_ID", "BscMSP"),
+			TLSCertPath:  filepath.Join("/app/identities/bsc/bscTLS-root-cert", "tls-ca-cert.pem"),
+			PeerEndpoint: getEnvWithDefault("PEER_ENDPOINT", "dns:///localhost:8020"),
+			GatewayPeer:  getEnvWithDefault("GATEWAY_PEER", "peer0.bsc.dt4h.com"),
+		}
 	}
 }
 
@@ -72,6 +84,7 @@ func InitializeWithSession(clientRequestBody ClientRequestBody, session *session
 
 // Handler for /client/invoke
 func InvokeHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Received Invoke request")
 	session, _ := getSessionStore().Get(r, "fabric-session")
 	gateway, ok := GetGateway(session.ID)
 
@@ -89,6 +102,7 @@ func InvokeHandler(w http.ResponseWriter, r *http.Request) {
 
 // Handler for /client/query
 func QueryHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Received Query request")
 	if r.Method == http.MethodGet {
 		// Parse query parameters
 		chaincodeId := r.URL.Query().Get("chaincodeid")
