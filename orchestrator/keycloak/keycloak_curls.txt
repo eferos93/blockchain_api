@@ -14,7 +14,7 @@ https://inb.bsc.es/auth/realms/datatools4heart/protocol/openid-connect/token
 OR DIRECTLY GET TOKEN
 curl -d "client_id=dt4h-ca" -d \
 "client_secret=ZTZqz6wBXVV9wm8xtBkiEQEOPL9JGj5U" -d \
-"username=xtsoukala@gmail.com" -d "password=EH9mRKfqKygtK9c" -d \
+"username=kkech@athenarc.gr" -d "password=123456" -d \
 "grant_type=password" \
 https://inb.bsc.es/auth/realms/datatools4heart/protocol/openid-connect/token
 
