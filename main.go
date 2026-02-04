@@ -83,14 +83,14 @@ func main() {
 
 	fmt.Println("Listening (http://localhost:3000/)...")
 
-	go func() {
-		time.Sleep(5 * time.Second) // Wait for server to be ready
-		username := os.Getenv("BSC_TEST_USER")
-		pwd := os.Getenv("BSC_TEST_PWD")
-		if err := RegisterBSCUser(username, pwd); err != nil {
-			log.Printf("Failed to register user: %v", err)
-		}
-	}()
+	// go func() {
+	// 	time.Sleep(5 * time.Second) // Wait for server to be ready
+	// 	username := os.Getenv("BSC_TEST_USER")
+	// 	pwd := os.Getenv("BSC_TEST_PWD")
+	// 	if err := RegisterBSCUser(username, pwd); err != nil {
+	// 		log.Printf("Failed to register user: %v", err)
+	// 	}
+	// }()
 
 	http.ListenAndServe(":3000", r)
 }

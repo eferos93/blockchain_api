@@ -33,8 +33,28 @@ func InitializeKeystore(keystoreType, config, masterPassword string) error {
 		}
 
 		GlobalKeystore = fileClient
+
+	case "vault":
+		// HashiCorp Vault-based keystore
+		var vaultConfig VaultKeystoreConfig
+		if err := json.Unmarshal([]byte(config), &vaultConfig); err != nil {
+			return fmt.Errorf("failed to parse vault keystore config: %w", err)
+		}
+
+		vaultClient, err := NewVaultKeystore(vaultConfig)
+		if err != nil {
+			return fmt.Errorf("failed to initialize vault keystore: %w", err)
+		}
+
+		// Test accessibility and ensure Transit key exists
+		if err := vaultClient.HealthCheck(); err != nil {
+			return fmt.Errorf("vault keystore health check failed: %w", err)
+		}
+
+		GlobalKeystore = vaultClient
+
 	default:
-		return fmt.Errorf("unsupported keystore type: %s (supported: file)", keystoreType)
+		return fmt.Errorf("unsupported keystore type: %s (supported: file, vault)", keystoreType)
 	}
 	return nil
 }
