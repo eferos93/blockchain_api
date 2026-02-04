@@ -83,14 +83,14 @@ func main() {
 
 	fmt.Println("Listening (http://localhost:3000/)...")
 
-	// go func() {
-	// 	time.Sleep(5 * time.Second) // Wait for server to be ready
-	// 	username := os.Getenv("BSC_TEST_USER")
-	// 	pwd := os.Getenv("BSC_TEST_PWD")
-	// 	if err := RegisterBSCUser(username, pwd); err != nil {
-	// 		log.Printf("Failed to register user: %v", err)
-	// 	}
-	// }()
+	go func() {
+		time.Sleep(10 * time.Second) // Wait for server to be ready
+		username := os.Getenv("BSC_TEST_USER")
+		pwd := os.Getenv("BSC_TEST_PWD")
+		if err := RegisterBSCUser(username, pwd); err != nil {
+			log.Printf("Failed to register user: %v", err)
+		}
+	}()
 
 	http.ListenAndServe(":3000", r)
 }
@@ -113,12 +113,12 @@ func RegisterBSCUser(username, secret string) error {
 	// Get admin credentials from environment or use defaults
 	adminUsername := os.Getenv("BSC_REG_USERNAME")
 	if adminUsername == "" {
-		adminUsername = "admin0" // Default BSC admin
+		log.Panic("adminUsername empty")
 	}
 
 	adminPassword := os.Getenv("BSC_REG_PASSWORD")
 	if adminPassword == "" {
-		adminPassword = "admin0pw" // Default BSC admin password
+		log.Panic("adminPassword empty")
 	}
 
 	// Get CA API URL
@@ -180,7 +180,7 @@ func RegisterBSCUser(username, secret string) error {
 		return fmt.Errorf("registration failed with status %d: %s", regResp.StatusCode, errorMsg)
 	}
 
-	var regResponse map[string]interface{}
+	var regResponse map[string]any
 	if err := json.Unmarshal(regBody, &regResponse); err != nil {
 		return fmt.Errorf("failed to parse registration response: %w", err)
 	}

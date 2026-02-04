@@ -1,5 +1,6 @@
 adminIdentity.json
 certs/
+keycloak/keycloak_curls.txt
 
 # Java dependency directory
 
