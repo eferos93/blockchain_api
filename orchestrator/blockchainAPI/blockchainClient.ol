@@ -37,7 +37,7 @@ interface BlockchainServiceInterface {
 
 constants {
     ARCLocation = "socket://localhost:7070", //TODO this will not work, because its an orderer, need to point to peer
-    BSCLocation = "socket://blockchain-api-filestore:3000",
+    BSCLocation = "socket://blockchain-api:3000",
     UBLocation = "socket://localhost:9051"
 }
 

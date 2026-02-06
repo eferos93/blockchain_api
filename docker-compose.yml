@@ -15,7 +15,7 @@ services:
   # Blockchain API services for each organization
   blockchain-api-filestore:
     <<: *blockchain-api-template
-    container_name: blockchain-api-filestore
+    container_name: blockchain-api
     ports:
       - "3000:3000"
     environment:
@@ -24,7 +24,7 @@ services:
       KEYSTORE_PASSWORD: "master123"
       ORG_NAME: "bsc"
       MSP_ID: "BscMSP"
-      PEER_ENDPOINT: "dns:///peer0.bsc.dt4h.com:9051"
+      PEER_ENDPOINT: "dns:///peer0.bsc.dt4h.com:8020"
       GATEWAY_PEER: "peer0.bsc.dt4h.com"
       FABRIC_CA_URL: "${TEST_FABRIC_CA_URL}"
       TLS_CA_URL: "${TEST_TLS_CA_URL}"
@@ -52,7 +52,7 @@ services:
   # Vault-backed Blockchain API service
   blockchain-api-vault:
     <<: *blockchain-api-template
-    container_name: blockchain-api-vault
+    container_name: blockchain-api
     ports:
       - "3000:3000"
     environment:
@@ -61,7 +61,7 @@ services:
       KEYSTORE_PASSWORD: ""
       ORG_NAME: "bsc"
       MSP_ID: "BscMSP"
-      PEER_ENDPOINT: "dns:///peer0.bsc.dt4h.com:9051"
+      PEER_ENDPOINT: "dns:///peer0.bsc.dt4h.com:8020"
       GATEWAY_PEER: "peer0.bsc.dt4h.com"
       FABRIC_CA_URL: "${TEST_FABRIC_CA_URL}"
       TLS_CA_URL: "${TEST_TLS_CA_URL}"
